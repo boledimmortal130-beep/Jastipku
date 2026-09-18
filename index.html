@@ -172,8 +172,11 @@ input[type=color]{height:38px;padding:3px;cursor:pointer}
 .toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,120%);
   background:var(--surface);border:1px solid var(--accent);color:var(--text);padding:12px 18px;
   border-radius:12px;z-index:2000;font-size:14px;transition:.3s;max-width:90vw;
-  box-shadow:0 12px 30px rgba(0,0,0,.45)}
-.toast.show{transform:translate(-50%,0)}
+  box-shadow:0 12px 30px rgba(0,0,0,.45);
+  visibility:hidden;
+  opacity:0;
+  pointer-events:none}
+.toast.show{visibility:visible;opacity:1;pointer-events:auto;transform:translate(-50%,0)}
 .toast.err{border-color:#ef4444;background:#3a1114}
 .modal{position:fixed;inset:0;background:rgba(0,0,0,.65);display:grid;place-items:center;z-index:1500;padding:16px}
 .modal-box{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
@@ -196,6 +199,17 @@ input[type=color]{height:38px;padding:3px;cursor:pointer}
   #printArea .struk{width:72mm;margin:0}
   @page{margin:4mm}
 }
+.footer-credit{
+  text-align:center;
+  padding:22px 16px;
+  color:var(--muted);
+  font-size:12.5px;
+  letter-spacing:.5px;
+  border-top:1px solid var(--border);
+  margin-top:26px;
+}
+.footer-credit b{color:var(--accent)}
+
 </style>
 </head>
 <body class="grad">
@@ -554,6 +568,14 @@ input[type=color]{height:38px;padding:3px;cursor:pointer}
 </section>
 
 </main>
+</main>
+
+<footer class="footer-credit">
+  © 2026 <b>jastipku</b> a'didin
+</footer>
+
+<div class="toast" id="toast"></div>
+
 
 <div class="toast" id="toast"></div>
 
@@ -2331,4 +2353,4 @@ function init(){
 window.addEventListener('load', init);
 </script>
 </body>
-</html>
+  </html>
