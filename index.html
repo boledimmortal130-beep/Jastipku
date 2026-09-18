@@ -1,0 +1,1626 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JastipKu — Jasa Titip Online</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+*{box-sizing:border-box}
+:root{
+  --bg:#0b1120;--bg2:#111c33;--surface:#16213a;--surface2:#1e2c4a;
+  --text:#e6edf7;--muted:#93a4c0;--accent:#22c55e;--accent2:#38bdf8;
+  --border:#2a3a5c;--radius:14px;
+}
+html,body{margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,-apple-system,Roboto,sans-serif;
+  background:var(--bg);color:var(--text);font-size:15px;line-height:1.55;min-height:100vh}
+body.grad{background:linear-gradient(150deg,var(--bg),var(--bg2) 55%,var(--bg));background-attachment:fixed}
+h1,h2,h3{margin:0 0 10px;line-height:1.25}
+h1{font-size:26px}h2{font-size:18px}h3{font-size:15px}
+.muted{color:var(--muted)}.small{font-size:12.5px}
+.acc{color:var(--accent)}
+.hidden{display:none !important}
+a{color:var(--accent2)}
+
+/* TOPBAR */
+.topbar{position:sticky;top:0;z-index:900;display:flex;align-items:center;gap:10px;
+  padding:10px 16px;background:var(--surface);border-bottom:1px solid var(--border)}
+.brand{font-weight:800;font-size:17px;letter-spacing:.3px;cursor:pointer}
+.brand span{color:var(--accent)}
+.spacer{flex:1}
+.icon-btn{position:relative;background:var(--surface2);border:1px solid var(--border);color:var(--text);
+  width:40px;height:40px;border-radius:12px;font-size:17px;cursor:pointer;display:grid;place-items:center}
+.icon-btn:hover{border-color:var(--accent)}
+#bellBadge{position:absolute;top:-5px;right:-5px;background:#ef4444;color:#fff;font-size:10px;
+  min-width:18px;height:18px;border-radius:9px;display:grid;place-items:center;font-weight:700;padding:0 4px}
+.bell-panel{position:absolute;right:12px;top:58px;width:340px;max-width:calc(100vw - 24px);max-height:430px;
+  overflow:auto;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+  box-shadow:0 20px 40px rgba(0,0,0,.45);z-index:1000}
+.bell-head{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;
+  border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--surface);z-index:2}
+.notif{padding:10px 12px;border-bottom:1px solid var(--border);position:relative}
+.notif.unread{background:color-mix(in srgb,var(--accent) 12%,transparent)}
+.notif b{display:block;font-size:13.5px}
+.notif p{margin:2px 0 0;font-size:12.5px;color:var(--muted)}
+.notif .t{font-size:11px;color:var(--muted);margin-top:4px}
+.notif .x{position:absolute;right:8px;top:8px;background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px}
+
+/* LAYOUT */
+main{max-width:1120px;margin:0 auto;padding:18px 16px 80px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:16px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:820px){.grid2{grid-template-columns:1fr}}
+.hero{padding:26px 20px;border-radius:var(--radius);margin-bottom:16px;
+  background:linear-gradient(135deg,color-mix(in srgb,var(--accent) 18%,var(--surface)),var(--surface));
+  border:1px solid var(--border)}
+.hero h1{margin-bottom:6px}
+.hero p{margin:0;color:var(--muted);max-width:620px}
+
+/* FORM */
+label{display:block;font-size:13px;font-weight:600;margin:12px 0 5px;color:var(--text)}
+label b{color:#ef4444}
+input,textarea,select{width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border);
+  background:var(--surface2);color:var(--text);font-size:14px;font-family:inherit;outline:none}
+input:focus,textarea:focus,select:focus{border-color:var(--accent)}
+input[readonly]{cursor:not-allowed;background:var(--surface)}
+textarea{resize:vertical}
+.hint{font-size:11.5px;color:var(--muted);margin-top:4px;display:block}
+.row-flex{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+
+/* BUTTONS */
+.btn{background:var(--accent);color:#04140a;border:none;padding:11px 16px;border-radius:11px;
+  font-weight:700;font-size:14px;cursor:pointer;font-family:inherit;transition:.15s}
+.btn:hover{filter:brightness(1.08);transform:translateY(-1px)}
+.btn:active{transform:translateY(0)}
+.btn.block{width:100%;display:block}
+.btn.ghost{background:var(--surface2);color:var(--text);border:1px solid var(--border)}
+.btn.ghost:hover{border-color:var(--accent)}
+.btn.blue{background:var(--accent2);color:#04121c}
+.btn.danger{background:#ef4444;color:#fff}
+.btn.sm{padding:7px 11px;font-size:12.5px;border-radius:9px}
+.btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+
+/* MAP */
+.map{height:300px;border-radius:12px;border:1px solid var(--border);margin-top:8px;z-index:1}
+.leaflet-container{background:var(--surface2)}
+
+/* ITEM ROWS (khusus struk manual admin) */
+.item-row{display:grid;grid-template-columns:1fr 110px 62px 34px;gap:6px;margin-bottom:6px}
+.item-row input{padding:8px 10px;font-size:13.5px}
+.item-row .del{background:var(--surface2);border:1px solid var(--border);color:#ef4444;border-radius:9px;
+  cursor:pointer;font-size:14px}
+@media(max-width:600px){.item-row{grid-template-columns:1fr 84px 52px 32px}}
+
+.sum{background:var(--surface2);border-radius:12px;padding:12px;margin-top:12px;font-size:13.5px}
+.sum div{display:flex;justify-content:space-between;padding:3px 0}
+.sum .tot{border-top:1px dashed var(--border);margin-top:6px;padding-top:8px;font-size:16px;font-weight:800;color:var(--accent)}
+
+/* ADMIN */
+.adminbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.adnav{display:flex;gap:8px;overflow-x:auto;padding-bottom:6px;margin-bottom:14px;scrollbar-width:thin}
+.tab{white-space:nowrap;background:var(--surface);border:1px solid var(--border);color:var(--muted);
+  padding:9px 14px;border-radius:11px;cursor:pointer;font-size:13.5px;font-weight:600;font-family:inherit}
+.tab.active{background:var(--accent);color:#04140a;border-color:var(--accent)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:14px}
+.stat{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px}
+.stat b{display:block;font-size:20px}
+.stat span{font-size:11.5px;color:var(--muted)}
+
+/* ORDERS */
+.order{background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:10px}
+.order.latest{border-color:var(--accent);box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 35%,transparent)}
+.order-head{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.badge{font-size:10.5px;padding:3px 8px;border-radius:20px;font-weight:700;background:var(--border);color:var(--text)}
+.badge.baru{background:#f59e0b;color:#3a2400}
+.badge.diterima{background:#8b5cf6;color:#fff}
+.badge.proses{background:var(--accent2);color:#04121c}
+.badge.selesai{background:var(--accent);color:#04140a}
+.badge.batal{background:#ef4444;color:#fff}
+.badge.latest{background:var(--accent);color:#04140a;margin-left:6px}
+.badge.manual{background:#8b5cf6;color:#fff;margin-left:6px}
+.order-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.order-total{font-weight:800;color:var(--accent);margin-top:6px}
+.qno{display:inline-block;background:var(--surface);border:1px solid var(--border);color:var(--accent);
+  font-weight:800;font-size:11.5px;padding:2px 8px;border-radius:8px;margin-right:6px}
+
+/* PRESET */
+.presets{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;margin-top:10px}
+.preset{border:2px solid var(--border);border-radius:11px;padding:8px;cursor:pointer;background:var(--surface2);text-align:center}
+.preset:hover{border-color:var(--accent)}
+.preset .dots{display:flex;gap:4px;justify-content:center;margin-bottom:6px}
+.preset .dots i{width:16px;height:16px;border-radius:50%;display:block}
+.preset small{font-size:11px;color:var(--muted)}
+.color-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-top:10px}
+.color-grid label{margin-top:0}
+input[type=color]{height:38px;padding:3px;cursor:pointer}
+
+/* TOAST / MODAL */
+.toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,120%);
+  background:var(--surface);border:1px solid var(--accent);color:var(--text);padding:12px 18px;
+  border-radius:12px;z-index:2000;font-size:14px;transition:.3s;max-width:90vw;
+  box-shadow:0 12px 30px rgba(0,0,0,.45)}
+.toast.show{transform:translate(-50%,0)}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.65);display:grid;place-items:center;z-index:1500;padding:16px}
+.modal-box{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+  width:100%;max-width:520px;max-height:88vh;overflow:auto}
+.modal-head{display:flex;justify-content:space-between;align-items:center;padding:14px 16px;
+  border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--surface);z-index:2}
+.modal-head button{background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer}
+.modal-body{padding:16px}
+
+/* STRUK */
+.struk{width:290px;background:#fff;color:#000;font-family:'Courier New',Courier,monospace;
+  font-size:12px;line-height:1.45;padding:8px;margin:0 auto}
+.struk .ctr{text-align:center}
+.struk .line{display:flex;justify-content:space-between;gap:6px}
+.struk hr{border:none;border-top:1px dashed #000;margin:5px 0}
+
+#printArea{display:none}
+@media print{
+  body>*{display:none !important}
+  #printArea{display:block !important;position:absolute;left:0;top:0;width:100%}
+  #printArea .struk{width:72mm;margin:0}
+  @page{margin:4mm}
+}
+</style>
+</head>
+<body class="grad">
+
+<!-- ============ TOPBAR ============ -->
+<header class="topbar">
+  <div class="brand" onclick="tampil('customer')">Jastip<span>Ku</span></div>
+  <div class="spacer"></div>
+  <button class="icon-btn" id="bellBtn" title="Pemberitahuan">🔔<span id="bellBadge" class="hidden">0</span></button>
+  <button class="btn sm ghost" id="btnAdminTop">Admin</button>
+</header>
+
+<div id="bellPanel" class="bell-panel hidden">
+  <div class="bell-head">
+    <b>🔔 Pemberitahuan</b>
+    <button class="btn sm ghost" onclick="bacaSemua()">Tandai dibaca</button>
+  </div>
+  <div id="notifList"></div>
+</div>
+
+<main>
+
+<!-- ============ CUSTOMER ============ -->
+<section id="viewCustomer">
+  <div class="hero">
+    <h1>Titip Beli Apa Aja, <span class="acc">Ongkir Otomatis</span> 🛵</h1>
+    <p>Isi alamat lengkap manual, tekan <b>Pakai Lokasi Saya</b> untuk mengambil titik GPS real-time, lalu ongkir dasar langsung terhitung dari jarak tempuh.</p>
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <h2>1️⃣ Data Pemesan</h2>
+      <label>Nama Lengkap <b>*</b></label>
+      <input id="cNama" placeholder="Contoh: Budi Santoso" autocomplete="name">
+
+      <label>Nomor WhatsApp <b>*</b></label>
+      <input id="cWa" placeholder="08xxxxxxxxxx" inputmode="numeric" autocomplete="tel">
+      <span class="hint">Wajib diawali <b>08</b> — dipakai admin untuk konfirmasi pesanan.</span>
+
+      <label>Alamat Lengkap <b>*</b></label>
+      <textarea id="cAlamat" rows="4" placeholder="Tulis manual: Jalan, No. rumah, RT/RW, Kelurahan, Kecamatan, Kota, patokan rumah..."></textarea>
+      <span class="hint">⚠️ <b>Isi manual.</b> Peta hanya dipakai menghitung ongkir otomatis, bukan mengambil alamat.</span>
+
+      <label>Deskripsi / Catatan / Detail Pesanan <b>*</b></label>
+      <textarea id="cCatatan" rows="5" placeholder="Contoh: tolong beliin 2kg mangga harum manis yang matang, jangan sampai lembek. Titip beli juga obat batuk anak di apotek sebelah minimarket."></textarea>
+      <span class="hint">Tulis detail barang/titipan sedetail mungkin agar admin tidak salah beli.</span>
+    </div>
+
+    <div class="card">
+      <h2>2️⃣ Titik Lokasi & Kirim Pesanan</h2>
+      <p class="muted small" style="margin-top:0">
+        Tekan <b>📍 Pakai Lokasi Saya</b> — titik GPS diambil <b>otomatis, akurat, dan real-time</b>.
+        Lokasi <b>hanya</b> dipakai menghitung ongkir otomatis.
+      </p>
+
+      <div id="mapCustomer" class="map"></div>
+
+      <div class="row-flex" style="margin-top:8px">
+        <button class="btn sm ghost" id="btnLokasiSaya">📍 Pakai Lokasi Saya (Otomatis &amp; Real-time)</button>
+      </div>
+
+      <div class="sum" id="sumOngkir">
+        <div><span>📍 Jarak dari admin</span><b id="oJarak">— km</b></div>
+        <div><span>🛵 Ongkir dasar</span><b id="oOngkir">Rp 0</b></div>
+        <div class="tot"><span>Total Sementara</span><span id="oTotal">Rp 0</span></div>
+      </div>
+      <span class="hint">Belum termasuk ongkir tambahan (jika ada) yang akan dikonfirmasi admin.</span>
+
+      <button class="btn block" id="btnKirim" style="margin-top:14px;font-size:16px;padding:15px">
+        📱 Klik Kirim Pesanan via WhatsApp
+      </button>
+      <span class="hint" style="text-align:center">
+        Pesanan otomatis terkirim ke WhatsApp admin beserta rincian ongkir.
+      </span>
+    </div>
+  </div>
+</section>
+
+<!-- ============ AUTH ============ -->
+<section id="viewAuth" class="hidden">
+  <div class="card" style="max-width:460px;margin:40px auto" id="authBox"></div>
+</section>
+
+<!-- ============ ADMIN ============ -->
+<section id="viewAdmin" class="hidden">
+  <div class="adminbar">
+    <div>
+      <h2 style="margin:0">Dashboard Admin</h2>
+      <span class="muted small" id="adminGreet"></span>
+    </div>
+    <div class="spacer"></div>
+    <button class="btn sm ghost" id="btnKeCustomer">👤 Lihat Sisi Customer</button>
+    <button class="btn sm danger" id="btnLogout">🚪 Logout</button>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><b id="stPesanan">0</b><span>Total Pesanan</span></div>
+    <div class="stat"><b id="stBaru">0</b><span>Pesanan Baru</span></div>
+    <div class="stat"><b id="stOmzet">Rp 0</b><span>Total Nilai</span></div>
+    <div class="stat"><b id="stOngkir">Rp 0</b><span>Ongkir / km</span></div>
+  </div>
+
+  <div class="adnav">
+    <button class="tab active" data-tab="toko">🏪 Toko & Ongkir</button>
+    <button class="tab" data-tab="tampilan">🎨 Tampilan Warna</button>
+    <button class="tab" data-tab="pesanan">🧾 History Pesanan</button>
+    <button class="tab" data-tab="struk">🖨️ Cetak Struk</button>
+    <button class="tab" data-tab="notif">🔔 Notifikasi</button>
+    <button class="tab" data-tab="akun">👤 Akun</button>
+  </div>
+
+  <!-- PANEL TOKO -->
+  <div class="panel" id="panel-toko">
+    <div class="grid2">
+      <div class="card">
+        <h2>🏪 Identitas Toko / Admin</h2>
+        <label>Nama Toko / Jastip</label>
+        <input id="aNamaToko" placeholder="Jastip Mitra Sejahtera">
+        <label>Nama Admin (tampil di struk)</label>
+        <input id="aNamaAdmin" placeholder="Nama admin">
+        <label>Nomor WhatsApp Admin</label>
+        <input id="aWaAdmin" placeholder="08xxxxxxxxxx" inputmode="numeric">
+        <span class="hint">Nomor ini yang menerima pesanan dari customer.</span>
+        <label>Alamat Toko (tampil di struk)</label>
+        <textarea id="aAlamatToko" rows="2" placeholder="Jl. Contoh No. 10, Kota"></textarea>
+        <button class="btn block" id="btnSimpanToko" style="margin-top:14px">💾 Simpan Identitas Toko</button>
+      </div>
+
+      <div class="card">
+        <h2>📍 Titik Maps Saya Berada & Ongkir</h2>
+        <p class="muted small" style="margin-top:0">Geser pin ke lokasi admin/toko. Jarak customer dihitung dari titik ini.</p>
+        <div class="row-flex">
+          <input id="aCari" placeholder="Cari lokasi toko..." style="flex:1;min-width:140px">
+          <button class="btn sm ghost" id="btnCariAdmin">🔎 Cari</button>
+        </div>
+        <div id="mapAdmin" class="map"></div>
+        <div class="row-flex" style="margin-top:8px">
+          <button class="btn sm ghost" id="btnLokasiAdmin">📍 Pakai Lokasi Saya</button>
+        </div>
+        <div class="row-flex" style="margin-top:10px">
+          <div style="flex:1;min-width:120px"><label style="margin-top:0">Latitude</label><input id="aLat" readonly></div>
+          <div style="flex:1;min-width:120px"><label style="margin-top:0">Longitude</label><input id="aLng" readonly></div>
+        </div>
+        <label>💰 Ongkir per KM (Rp)</label>
+        <input id="aOngkirKm" type="number" min="0" step="500" placeholder="2500">
+        <span class="hint">Ongkir dasar = jarak (km, dibulatkan ke atas) × tarif per km.</span>
+        <button class="btn block" id="btnSimpanOngkir" style="margin-top:14px">💾 Simpan Titik & Ongkir</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PANEL TAMPILAN -->
+  <div class="panel hidden" id="panel-tampilan">
+    <div class="card">
+      <h2>🎨 Penyetingan Warna Menyeluruh</h2>
+      <p class="muted small" style="margin-top:0">Ubah warna seluruh website sekaligus. Pilih preset, acak otomatis, atau atur warna satu per satu.</p>
+      <div class="row-flex">
+        <button class="btn" id="btnAcak">🎲 Warna Otomatis (Acak)</button>
+        <button class="btn ghost" id="btnResetTema">↺ Kembalikan Default</button>
+        <label class="row-flex" style="margin:0;gap:6px;font-weight:600">
+          <input type="checkbox" id="aGrad" style="width:auto"> Gradasi Background
+        </label>
+      </div>
+      <h3 style="margin-top:18px">Palet Siap Pakai</h3>
+      <div class="presets" id="presetGrid"></div>
+      <h3 style="margin-top:20px">Atur Warna Manual</h3>
+      <div class="color-grid">
+        <div><label>Background</label><input type="color" data-c="bg"></div>
+        <div><label>Background 2</label><input type="color" data-c="bg2"></div>
+        <div><label>Kartu</label><input type="color" data-c="surface"></div>
+        <div><label>Kartu 2</label><input type="color" data-c="surface2"></div>
+        <div><label>Teks</label><input type="color" data-c="text"></div>
+        <div><label>Teks Redup</label><input type="color" data-c="muted"></div>
+        <div><label>Warna Utama</label><input type="color" data-c="accent"></div>
+        <div><label>Warna Kedua</label><input type="color" data-c="accent2"></div>
+        <div><label>Garis</label><input type="color" data-c="border"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PANEL PESANAN -->
+  <div class="panel hidden" id="panel-pesanan">
+    <div class="card">
+      <div class="row-flex" style="justify-content:space-between">
+        <h2 style="margin:0">🧾 History Pesanan <span class="muted small">(terbaru di atas)</span></h2>
+        <div class="row-flex">
+          <button class="btn sm blue" id="btnWaBaru">📤 Chat ke Semua Pesanan Baru</button>
+          <button class="btn sm danger" id="btnHapusSelesai">🗑️ Hapus yang Selesai</button>
+        </div>
+      </div>
+      <div id="daftarPesanan" style="margin-top:14px"></div>
+    </div>
+  </div>
+
+  <!-- PANEL STRUK -->
+  <div class="panel hidden" id="panel-struk">
+    <div class="grid2">
+      <div class="card">
+        <h2>🖨️ Input Struk Manual</h2>
+        <label>Nomor Antrian <small class="muted">(otomatis dari riwayat)</small></label>
+        <div class="row-flex">
+          <input id="strkAntrian" readonly style="flex:1" title="Nomor antrian diambil otomatis dari riwayat pesanan">
+          <button class="btn sm ghost" id="btnResetAntrian">🔄 Sinkron dari Riwayat</button>
+        </div>
+        <span class="hint">
+          Nomor antrian <b>otomatis</b> = <b>nomor terakhir di riwayat + 1</b>. Jika riwayat kosong,
+          otomatis mulai dari <b>#0001</b>. Reset terjadi <b>otomatis</b> saat history dihapus.
+        </span>
+
+        <label>Nama Pelanggan</label>
+        <input id="strkNama" list="listPelanggan" placeholder="Nama pelanggan">
+        <datalist id="listPelanggan"></datalist>
+
+        <label>Nomor WhatsApp Pelanggan (opsional)</label>
+        <input id="strkWa" placeholder="08xxxxxxxxxx" inputmode="numeric">
+
+        <label>Daftar Barang</label>
+        <div class="item-row" style="font-size:12px;color:var(--muted);font-weight:700">
+          <span>Nama Barang</span><span>Harga</span><span>Qty</span><span></span>
+        </div>
+        <div id="strukItems"></div>
+        <button class="btn sm ghost" id="btnTambahItemStruk" style="margin-top:6px">➕ Tambah Barang</button>
+
+        <label>Ongkir — Jarak (km)</label>
+        <div class="row-flex">
+          <input id="strkJarak" type="number" min="0" step="0.1" value="0" style="flex:1">
+          <button class="btn sm ghost" id="btnPilihTitik">🗺️ Hitung dari Peta</button>
+        </div>
+        <span class="hint">Ongkir dasar otomatis: jarak × tarif per km.</span>
+
+        <label>Ongkir Tambahan (Rp)</label>
+        <input id="strkTambahan" type="number" min="0" step="500" value="0">
+        <span class="hint">Biaya tambahan dari admin, misal jalan sulit / antar luar kota.</span>
+
+        <div class="sum">
+          <div><span>Subtotal Barang</span><b id="kSubtotal">Rp 0</b></div>
+          <div><span>Ongkir Dasar (<span id="kKm">0</span> km)</span><b id="kOngkir">Rp 0</b></div>
+          <div><span>Ongkir Tambahan</span><b id="kTambahan">Rp 0</b></div>
+          <div class="tot"><span>TOTAL</span><span id="kTotal">Rp 0</span></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>🧻 Preview Struk</h2>
+        <div id="previewStruk"></div>
+
+        <div class="row-flex" style="margin-top:14px">
+          <button class="btn" id="btnPrintBT">📶 Cetak via Bluetooth</button>
+          <button class="btn blue" id="btnPrintBrowser">🖨️ Cetak / Simpan PDF</button>
+        </div>
+        <div class="row-flex" style="margin-top:8px">
+          <button class="btn ghost" id="btnSimpanRiwayat">💾 Simpan ke Riwayat</button>
+          <button class="btn ghost" id="btnWaStruk">📱 Kirim Total ke WA Pelanggan</button>
+        </div>
+        <span class="hint" id="btStatus">Printer Bluetooth: belum terhubung.</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- PANEL NOTIFIKASI -->
+  <div class="panel hidden" id="panel-notif">
+    <div class="card">
+      <h2>🔔 Input Pemberitahuan</h2>
+      <label>Judul Pemberitahuan</label>
+      <input id="ntJudul" placeholder="Contoh: Libur Lebaran">
+      <label>Isi Pesan</label>
+      <textarea id="ntIsi" rows="3" placeholder="Contoh: Tanggal 10-12 tutup, pesanan diproses ulang tanggal 13."></textarea>
+      <button class="btn block" id="btnKirimNotif" style="margin-top:12px">📢 Kirim Pemberitahuan</button>
+      <span class="hint">Pemberitahuan akan muncul di ikon lonceng pojok kanan atas.</span>
+    </div>
+    <div class="card">
+      <h3>Daftar Pemberitahuan</h3>
+      <div id="daftarNotif"></div>
+    </div>
+  </div>
+
+  <!-- PANEL AKUN -->
+  <div class="panel hidden" id="panel-akun">
+    <div class="card" style="max-width:560px">
+      <h2>👤 Pengaturan Akun Admin</h2>
+      <label>Nama Admin</label>
+      <input id="akNama">
+      <label>Nomor WhatsApp</label>
+      <input id="akWa" inputmode="numeric">
+      <label>Kata Sandi (kosongkan jika tidak diubah)</label>
+      <input id="akSandi" type="password" placeholder="••••••••">
+      <label>Kode Khusus / Sandi Khusus</label>
+      <input id="akKode" placeholder="Kode rahasia untuk reset sandi">
+      <span class="hint">Simpan kode ini baik-baik. Dipakai untuk reset sandi jika lupa.</span>
+
+      <button class="btn block" id="btnSimpanAkun" style="margin-top:14px">💾 Simpan Perubahan</button>
+
+      <!-- 🔐 INFORMASI KODE AKSES (dikunci di kode HTML) -->
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:12px;margin-top:16px">
+        <b>🔐 Kode Akses (Pendaftaran &amp; Login)</b>
+        <p class="small muted" style="margin:6px 0 0">
+          Kode akses <b>tidak dapat diubah dari panel ini</b> demi keamanan.
+          Untuk menggantinya, buka file <b>HTML</b> dengan editor teks (Notepad/VS Code),
+          tekan <b>Ctrl + F</b>, cari tulisan berikut, lalu ganti nilainya:
+        </p>
+        <pre style="background:#000;color:var(--accent);padding:10px;border-radius:8px;margin-top:8px;overflow:auto;font-size:12px">const DEFAULT_SECRET_REGISTRATION = "aliciapitalaurasalsabila";</pre>
+        <p class="small muted" style="margin:6px 0 0">Hanya orang yang tahu kode ini yang bisa <b>daftar</b> &amp; <b>login</b> sebagai admin.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<div class="toast" id="toast"></div>
+
+<div class="modal hidden" id="modal">
+  <div class="modal-box">
+    <div class="modal-head"><b id="modalTitle">Modal</b><button id="modalClose">✕</button></div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+
+<div id="printArea"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+/* ============================================================
+   JASTIPKU — APP LOGIC (v5)
+   - Alamat lengkap diisi manual (peta hanya untuk ongkir)
+   - Nomor antrian OTOMATIS dari riwayat pesanan (nomor terakhir + 1)
+   - Kode Akses/Kode Khusus HANYA bisa diubah di dalam kode HTML ini
+   ============================================================ */
+
+// ═══════════════════════════════════════════════════════════════
+// 🔐 KODE KHUSUS — CARI DAN EDIT DI SINI
+// Ganti nilai di bawah ini untuk mengubah kode akses Pendaftaran & Login.
+// Kode ini TIDAK BISA diubah dari panel admin (dikunci di kode HTML).
+// ═══════════════════════════════════════════════════════════════
+const DEFAULT_SECRET_REGISTRATION = "aliciapitalaurasalsabila";
+// ═══════════════════════════════════════════════════════════════
+
+const $  = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const rp  = n => 'Rp ' + (Math.round(Number(n) || 0)).toLocaleString('id-ID');
+const HARI   = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
+const BULAN  = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+const p2 = n => String(n).padStart(2,'0');
+function waktuLengkap(d = new Date()){
+  return `${HARI[d.getDay()]}, ${d.getDate()} ${BULAN[d.getMonth()]} ${d.getFullYear()} — ${p2(d.getHours())}:${p2(d.getMinutes())}`;
+}
+function toast(msg, ms = 2800){
+  const t = $('#toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._tm); t._tm = setTimeout(() => t.classList.remove('show'), ms);
+}
+function bukaWA(nomor, teks){
+  let n = String(nomor || '').replace(/\D/g,'');
+  if(!n){ toast('⚠️ Nomor WhatsApp belum diatur'); return false; }
+  if(n.startsWith('0')) n = '62' + n.slice(1);
+  if(n.startsWith('8')) n = '62' + n;
+  window.open(`https://wa.me/${n}?text=${encodeURIComponent(teks)}`, '_blank');
+  return true;
+}
+function haversine(a, b){
+  const R = 6371, rad = x => x * Math.PI / 180;
+  const dLat = rad(b.lat - a.lat), dLng = rad(b.lng - a.lng);
+  const s = Math.sin(dLat/2)**2 + Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dLng/2)**2;
+  return 2 * R * Math.asin(Math.sqrt(s));
+}
+
+/* ---------- NOMOR ANTRIAN OTOMATIS DARI RIWAYAT ---------- */
+/* Nomor antrian = (nomor terakhir di riwayat pesanan) + 1
+   Kalau riwayat kosong → otomatis mulai dari #0001 (reset otomatis). */
+function nomorAntrianBerikutnya(){
+  const maxQ = DB.pesanan.reduce((m, p) => Math.max(m, Number(p.queue) || 0), 0);
+  return maxQ + 1;
+}
+function nomorTerakhirRiwayat(){
+  return DB.pesanan.reduce((m, p) => Math.max(m, Number(p.queue) || 0), 0);
+}
+function formatAntrian(n){
+  return '#' + String(n).padStart(4, '0');
+}
+function perbaruiFieldAntrian(){
+  const ia = $('#strkAntrian');
+  if(ia) ia.value = formatAntrian(nomorAntrianBerikutnya());
+}
+
+/* ---------- STORAGE ---------- */
+const KEY = 'jastipDB_v2';
+const PALET_DEFAULT = {
+  bg:'#0b1120', bg2:'#111c33', surface:'#16213a', surface2:'#1e2c4a',
+  text:'#e6edf7', muted:'#93a4c0', accent:'#22c55e', accent2:'#38bdf8',
+  border:'#2a3a5c', grad:true
+};
+let DB = {
+  akun: null,
+  pengaturan: {
+    namaToko:'JastipKu', namaAdmin:'', waAdmin:'', alamatToko:'',
+    lat: -6.200000, lng: 106.816666,
+    ongkirPerKm: 2500,
+    tema: { ...PALET_DEFAULT }
+  },
+  notifikasi: [],
+  pesanan: []
+};
+function simpan(){ localStorage.setItem(KEY, JSON.stringify(DB)); }
+function muat(){
+  try{
+    const raw = localStorage.getItem(KEY);
+    if(!raw) return;
+    const d = JSON.parse(raw);
+    DB = { ...DB, ...d };
+    DB.pengaturan = { ...DB.pengaturan, ...(d.pengaturan || {}) };
+    DB.pengaturan.tema = { ...PALET_DEFAULT, ...((d.pengaturan || {}).tema || {}) };
+    /* Bersihkan data lama yang tidak dipakai lagi (kode akses & counter manual) */
+    if(DB.pengaturan.kodeAkses) delete DB.pengaturan.kodeAkses;
+    if('counter' in DB) delete DB.counter;
+    DB.notifikasi = d.notifikasi || [];
+    DB.pesanan    = d.pesanan    || [];
+  }catch(e){ console.warn('Gagal memuat data', e); }
+}
+
+/* ---------- TEMA ---------- */
+function terapkanTema(){
+  const t = DB.pengaturan.tema, r = document.documentElement.style;
+  ['bg','bg2','surface','surface2','text','muted','accent','accent2','border']
+    .forEach(k => r.setProperty('--' + k, t[k]));
+  document.body.classList.toggle('grad', !!t.grad);
+  $('#aGrad').checked = !!t.grad;
+  $$('input[type=color][data-c]').forEach(i => { i.value = toHex(t[i.dataset.c]); });
+}
+function toHex(c){
+  if(!c) return '#000000';
+  if(c.startsWith('#')) return c.length === 4 ? '#'+c[1]+c[1]+c[2]+c[2]+c[3]+c[3] : c;
+  const m = c.match(/\d+/g); if(!m) return '#000000';
+  return '#' + m.slice(0,3).map(x => (+x).toString(16).padStart(2,'0')).join('');
+}
+const PRESETS = [
+  {nama:'Malam Neon',   bg:'#0b1120',bg2:'#111c33',surface:'#16213a',surface2:'#1e2c4a',text:'#e6edf7',muted:'#93a4c0',accent:'#22c55e',accent2:'#38bdf8',border:'#2a3a5c'},
+  {nama:'Samudra',      bg:'#04202e',bg2:'#063345',surface:'#08485e',surface2:'#0b5e78',text:'#e0f7ff',muted:'#8fc3d6',accent:'#2dd4bf',accent2:'#60a5fa',border:'#0f6f8c'},
+  {nama:'Ungu Neon',    bg:'#140a24',bg2:'#1e1038',surface:'#27154a',surface2:'#341d5e',text:'#f0e8ff',muted:'#b39ddb',accent:'#c084fc',accent2:'#f472b6',border:'#432a72'},
+  {nama:'Merah Marun',  bg:'#1a0a0d',bg2:'#2a1015',surface:'#3a161d',surface2:'#4d1d26',text:'#ffe8ea',muted:'#d19aa3',accent:'#ef4444',accent2:'#fb923c',border:'#5e2630'},
+  {nama:'Hijau Daun',   bg:'#0a1a10',bg2:'#0f2618',surface:'#143421',surface2:'#1c452c',text:'#e8fff0',muted:'#95c9aa',accent:'#22c55e',accent2:'#a3e635',border:'#255c3a'},
+  {nama:'Kopi Susu',    bg:'#1b1410',bg2:'#2a2018',surface:'#382a1f',surface2:'#4a3829',text:'#f5ece2',muted:'#c2a98f',accent:'#d97706',accent2:'#fbbf24',border:'#5c4532'},
+  {nama:'Pink Manis',   bg:'#2a0f1e',bg2:'#3d152b',surface:'#521b39',surface2:'#6b2449',text:'#ffe9f3',muted:'#e0a1bd',accent:'#f472b6',accent2:'#a78bfa',border:'#7c2c54'},
+  {nama:'Abu Elegan',   bg:'#111214',bg2:'#1a1c1f',surface:'#24272b',surface2:'#2f3338',text:'#f1f3f5',muted:'#9aa3ad',accent:'#38bdf8',accent2:'#818cf8',border:'#3d4248'},
+  {nama:'Terang Bersih',bg:'#f4f6fb',bg2:'#e7ecf6',surface:'#ffffff',surface2:'#eef2f9',text:'#16202e',muted:'#5f7183',accent:'#16a34a',accent2:'#2563eb',border:'#d3dbe7'},
+  {nama:'Krem Lembut',  bg:'#fbf7f0',bg2:'#f2ebde',surface:'#ffffff',surface2:'#f6f0e6',text:'#2c2418',muted:'#847456',accent:'#c2410c',accent2:'#0d9488',border:'#e3d8c4'},
+  {nama:'Mint Segar',   bg:'#effcf7',bg2:'#ddf7ec',surface:'#ffffff',surface2:'#e7f8f0',text:'#0c2b22',muted:'#4f7f70',accent:'#0d9488',accent2:'#f59e0b',border:'#c6ebdd'},
+  {nama:'Biru Malam',   bg:'#060d1c',bg2:'#0a1730',surface:'#0f2144',surface2:'#16305e',text:'#e3eeff',muted:'#8fa9cf',accent:'#3b82f6',accent2:'#22d3ee',border:'#1e3f74'}
+];
+const hsl = (h,s,l) => `hsl(${h} ${s}% ${l})`;
+function paletAcak(){
+  const h = Math.floor(Math.random()*360);
+  const h2 = (h + 60 + Math.floor(Math.random()*180)) % 360;
+  if(Math.random() > 0.35){
+    return { bg:hsl(h,42,7), bg2:hsl(h,48,12), surface:hsl(h,38,14), surface2:hsl(h,36,19),
+      text:hsl(h,30,95), muted:hsl(h,18,66), accent:hsl(h2,78,56), accent2:hsl((h2+45)%360,82,64),
+      border:hsl(h,28,27), grad:true };
+  }
+  return { bg:hsl(h,50,96), bg2:hsl(h,50,90), surface:hsl(h,60,99), surface2:hsl(h,45,94),
+    text:hsl(h,35,12), muted:hsl(h,20,42), accent:hsl(h2,72,38), accent2:hsl((h2+140)%360,68,42),
+    border:hsl(h,30,85), grad:false };
+}
+function renderPreset(){
+  $('#presetGrid').innerHTML = PRESETS.map((p,i) => `
+    <div class="preset" data-i="${i}">
+      <div class="dots">
+        <i style="background:${p.bg}"></i><i style="background:${p.accent}"></i>
+        <i style="background:${p.accent2}"></i><i style="background:${p.surface2}"></i>
+      </div><small>${p.nama}</small>
+    </div>`).join('');
+  $$('#presetGrid .preset').forEach(el => el.onclick = () => {
+    const p = { ...PRESETS[+el.dataset.i] };
+    DB.pengaturan.tema = { ...p, grad: DB.pengaturan.tema.grad };
+    simpan(); terapkanTema(); toast('🎨 Palet "' + p.nama + '" diterapkan');
+  });
+}
+
+/* ---------- NOTIFIKASI ---------- */
+function tambahNotif(judul, isi, tipe = 'info'){
+  DB.notifikasi.unshift({ id: 'n' + Date.now() + Math.random().toString(36).slice(2,6),
+    judul, isi, tipe, waktu: waktuLengkap(), dibaca: false });
+}
+function renderNotif(){
+  const belum = DB.notifikasi.filter(n => !n.dibaca).length;
+  const badge = $('#bellBadge');
+  badge.textContent = belum; badge.classList.toggle('hidden', belum === 0);
+  $('#notifList').innerHTML = DB.notifikasi.length ? DB.notifikasi.map(n => `
+    <div class="notif ${n.dibaca ? '' : 'unread'}">
+      <button class="x" data-del="${n.id}" title="Hapus">✕</button>
+      <b>${esc(n.judul)}</b><p>${esc(n.isi)}</p><div class="t">${n.waktu}</div>
+    </div>`).join('') : '<div class="notif"><p>Belum ada pemberitahuan.</p></div>';
+  $$('#notifList .x').forEach(b => b.onclick = e => {
+    e.stopPropagation();
+    DB.notifikasi = DB.notifikasi.filter(x => x.id !== b.dataset.del);
+    simpan(); renderNotif();
+  });
+  renderDaftarNotif();
+}
+function bacaSemua(){ DB.notifikasi.forEach(n => n.dibaca = true); simpan(); renderNotif(); }
+function renderDaftarNotif(){
+  const w = $('#daftarNotif'); if(!w) return;
+  w.innerHTML = DB.notifikasi.length ? DB.notifikasi.map(n => `
+    <div class="order">
+      <div class="order-head"><b>${esc(n.judul)}</b><span class="muted small">${n.waktu}</span></div>
+      <p class="small muted" style="margin:4px 0 0">${esc(n.isi)}</p>
+      <div class="order-actions">
+        <button class="btn sm ghost" data-edit="${n.id}">✏️ Edit</button>
+        <button class="btn sm danger" data-del2="${n.id}">🗑️ Hapus</button>
+      </div>
+    </div>`).join('') : '<p class="muted small">Belum ada pemberitahuan.</p>';
+  $$('#daftarNotif [data-edit]').forEach(b => b.onclick = () => modalEditNotif(b.dataset.edit));
+  $$('#daftarNotif [data-del2]').forEach(b => b.onclick = () => {
+    DB.notifikasi = DB.notifikasi.filter(x => x.id !== b.dataset.del2);
+    simpan(); renderNotif(); toast('🗑️ Pemberitahuan dihapus');
+  });
+}
+function modalEditNotif(id){
+  const n = DB.notifikasi.find(x => x.id === id); if(!n) return;
+  $('#modalTitle').textContent = '✏️ Edit Pemberitahuan';
+  $('#modalBody').innerHTML = `
+    <label>Judul</label><input id="neJudul" value="${esc(n.judul)}">
+    <label>Isi</label><textarea id="neIsi" rows="4">${esc(n.isi)}</textarea>
+    <button class="btn block" id="btnSimpanNotif" style="margin-top:14px">💾 Simpan</button>`;
+  bukaModal();
+  $('#btnSimpanNotif').onclick = () => {
+    n.judul = $('#neJudul').value.trim() || n.judul;
+    n.isi   = $('#neIsi').value.trim()   || n.isi;
+    simpan(); tutupModal(); renderNotif(); toast('✅ Pemberitahuan diperbarui');
+  };
+}
+
+/* ---------- VIEW ---------- */
+function tampil(v){
+  $('#viewCustomer').classList.toggle('hidden', v !== 'customer');
+  $('#viewAuth').classList.toggle('hidden', v !== 'auth');
+  $('#viewAdmin').classList.toggle('hidden', v !== 'admin');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  if(v === 'customer' && mapC) setTimeout(() => mapC.invalidateSize(), 120);
+  if(v === 'admin' && mapA)    setTimeout(() => mapA.invalidateSize(), 120);
+}
+
+/* ---------- MAPS ---------- */
+let mapC = null, markerC = null, tokoC = null;
+let mapA = null, markerA = null;
+let lokasiCustomer = { lat: DB.pengaturan.lat, lng: DB.pengaturan.lng };
+let watchIdC = null, lokasiTerdeteksi = false;
+
+function initMapCustomer(){
+  if(mapC) return;
+  mapC = L.map('mapCustomer').setView([DB.pengaturan.lat, DB.pengaturan.lng], 12);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(mapC);
+  tokoC = L.circleMarker([DB.pengaturan.lat, DB.pengaturan.lng],
+    { radius: 8, color: '#f59e0b', fillColor: '#fbbf24', fillOpacity: .9 })
+    .addTo(mapC).bindPopup('📍 Lokasi Admin / Toko');
+  markerC = L.marker([lokasiCustomer.lat, lokasiCustomer.lng], { draggable: true }).addTo(mapC);
+  markerC.bindPopup('📍 Titik Lokasi Anda (untuk ongkir)');
+  markerC.on('dragend', () => {
+    lokasiTerdeteksi = true;
+    setLokasiCustomer(markerC.getLatLng());
+  });
+  mapC.on('click', e => {
+    lokasiTerdeteksi = true;
+    markerC.setLatLng(e.latlng); setLokasiCustomer(e.latlng);
+  });
+}
+function setLokasiCustomer(ll){
+  lokasiCustomer = { lat: ll.lat, lng: ll.lng };
+  hitungOngkir();
+}
+function updateTokoMarker(){
+  if(tokoC) tokoC.setLatLng([DB.pengaturan.lat, DB.pengaturan.lng]);
+  hitungOngkir();
+}
+function hitungOngkir(){
+  const j = haversine({ lat: DB.pengaturan.lat, lng: DB.pengaturan.lng }, lokasiCustomer);
+  const km = Math.max(0, j);
+  const dibulatkan = Math.ceil(km * 10) / 10;
+  const ongkir = Math.ceil(km) * (DB.pengaturan.ongkirPerKm || 0);
+  $('#oJarak').textContent  = dibulatkan.toFixed(1) + ' km';
+  $('#oOngkir').textContent = rp(ongkir);
+  $('#oTotal').textContent  = rp(ongkir);
+  return { km: dibulatkan, ongkir };
+}
+
+/* ---- GPS real-time ---- */
+function mulaiLacakLokasi(manual = false){
+  if(!navigator.geolocation){
+    if(manual) toast('⚠️ Browser tidak mendukung GPS');
+    return;
+  }
+  if(watchIdC !== null){ navigator.geolocation.clearWatch(watchIdC); watchIdC = null; }
+  if(manual) toast('📡 Mengambil lokasi akurat...');
+  let pertama = true, sudahToast = false;
+  watchIdC = navigator.geolocation.watchPosition(pos => {
+    const ll = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+    lokasiTerdeteksi = true;
+    markerC.setLatLng(ll);
+    if(pertama){ mapC.setView(ll, 17); pertama = false; }
+    setLokasiCustomer(ll);
+    if(manual && !sudahToast){
+      sudahToast = true;
+      toast('📍 Lokasi akurat terdeteksi (akurasi ±' + Math.round(pos.coords.accuracy || 0) + ' m)');
+    }
+  }, () => {
+    if(manual) toast('❌ Gagal mengambil lokasi. Izinkan akses GPS di browser.', 3800);
+  }, { enableHighAccuracy: true, maximumAge: 3000, timeout: 20000 });
+}
+
+function initMapAdmin(){
+  if(mapA) return;
+  mapA = L.map('mapAdmin').setView([DB.pengaturan.lat, DB.pengaturan.lng], 13);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(mapA);
+  markerA = L.marker([DB.pengaturan.lat, DB.pengaturan.lng], { draggable: true }).addTo(mapA);
+  markerA.on('dragend', () => setTokoA(markerA.getLatLng()));
+  mapA.on('click', e => { markerA.setLatLng(e.latlng); setTokoA(e.latlng); });
+  setTokoA({ lat: DB.pengaturan.lat, lng: DB.pengaturan.lng }, false);
+}
+function setTokoA(ll, updateMarker = true){
+  DB.pengaturan.lat = +ll.lat.toFixed(6);
+  DB.pengaturan.lng = +ll.lng.toFixed(6);
+  $('#aLat').value = DB.pengaturan.lat;
+  $('#aLng').value = DB.pengaturan.lng;
+  if(updateMarker && markerA) markerA.setLatLng([DB.pengaturan.lat, DB.pengaturan.lng]);
+}
+async function cariAlamat(q){
+  const r = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(q)}`);
+  const j = await r.json();
+  if(!j.length) throw new Error('not found');
+  return { lat: +j[0].lat, lng: +j[0].lon, nama: j[0].display_name };
+}
+
+/* ---------- ITEM ROWS ---------- */
+function barisItemHTML(nama = '', harga = '', qty = 1){
+  return `<div class="item-row">
+    <input class="iNama" placeholder="Nama barang" value="${esc(nama)}">
+    <input class="iHarga" type="number" min="0" placeholder="Harga" value="${harga}">
+    <input class="iQty" type="number" min="0" value="${qty}">
+    <button class="del" type="button">✕</button>
+  </div>`;
+}
+function bacaItems(kontainer){
+  return [...kontainer.querySelectorAll('.item-row')]
+    .map(r => ({
+      nama: r.querySelector('.iNama').value.trim(),
+      harga: Number(r.querySelector('.iHarga').value) || 0,
+      qty: Number(r.querySelector('.iQty').value) || 0
+    }))
+    .filter(i => (i.nama || i.harga) && i.qty > 0);
+}
+function hitungSubtotal(items){ return items.reduce((s,i) => s + i.harga * i.qty, 0); }
+
+/* ---------- WHATSAPP MESSAGES ---------- */
+function pesanNotifStatus(status, p){
+  const items = (p.items || []).map((i,n) => `${n+1}. ${i.nama} — ${i.qty}× ${rp(i.harga)} = ${rp(i.qty*i.harga)}`).join('\n');
+  const rincian = p.items && p.items.length ? `\n*📦 Rincian Pesanan:*\n${items}\n` : '';
+  const catatan = p.catatan ? `\n📝 *Catatan:* ${p.catatan}\n` : '';
+  const extra   = p.ongkirTambahan ? `Ongkir tambahan : ${rp(p.ongkirTambahan)}\n` : '';
+  const head = `Halo *${p.nama}* 👋\n`;
+  const tail = `\nTerima kasih sudah order di *${DB.pengaturan.namaToko || 'JastipKu'}* 🙏`;
+
+  if(status === 'Diterima') return head +
+    `✅ *Pesanan Anda sudah kami terima!*\nNomor antrian: *#${p.queue}*\n` + catatan + rincian +
+    `\nSubtotal : ${rp(p.subtotal)}\nOngkir (${p.jarak} km) : ${rp(p.ongkir)}\n` + extra +
+    `*TOTAL : ${rp(p.total)}*\n\nKami segera proses ya.` + tail;
+
+  if(status === 'Diproses') return head +
+    `🔄 *Pesanan Anda sedang DIPROSES*\nNomor antrian: *#${p.queue}*\n` + catatan + rincian +
+    `\n*TOTAL : ${rp(p.total)}*\n\nMohon ditunggu, kami sedang belanja titipan Anda.` + tail;
+
+  if(status === 'Selesai') return head +
+    `🎉 *PESANAN SELESAI — TERIMA KASIH*\nNomor antrian: *#${p.queue}*\n` + catatan + rincian +
+    `\nSubtotal : ${rp(p.subtotal)}\nOngkir (${p.jarak} km) : ${rp(p.ongkir)}\n` + extra +
+    `*TOTAL DIBAYAR : ${rp(p.total)}*\n\nPesanan sudah sampai / diterima.` + tail;
+
+  if(status === 'Batal') return head +
+    `❌ *Pesanan Dibatalkan*\nNomor antrian: *#${p.queue}*\n\nMohon maaf pesanan Anda kami batalkan.` + tail;
+
+  return head + `Status pesanan: *${status}*` + tail;
+}
+function teksPesananWA(p){
+  const L = [];
+  L.push('*🛒 PESANAN JASTIP BARU*');
+  L.push('━━━━━━━━━━━━━━━━━━');
+  L.push('🔢 Antrian : #' + p.queue);
+  L.push('👤 Nama    : ' + p.nama);
+  L.push('📱 WA      : ' + p.wa);
+  L.push('🏠 Alamat  : ' + p.alamat);
+  L.push('📍 Titik Lokasi : https://maps.google.com/?q=' + p.lat + ',' + p.lng);
+  L.push('📏 Jarak   : ' + p.jarak + ' km');
+  L.push('━━━━━━━━━━━━━━━━━━');
+  if(p.catatan) L.push('📝 *Deskripsi / Catatan Pesanan:*\n' + p.catatan + '\n');
+  L.push('🛵 Ongkir dasar (' + p.jarak + ' km) : ' + rp(p.ongkir));
+  L.push('*TOTAL SEMENTARA : ' + rp(p.total) + '*');
+  L.push('_Ongkir tambahan & harga barang akan dikonfirmasi admin._');
+  L.push('━━━━━━━━━━━━━━━━━━');
+  L.push('Mohon dikonfirmasi ya, terima kasih 🙏');
+  return L.join('\n');
+}
+
+/* ---------- CUSTOMER: KIRIM ---------- */
+function kirimPesanan(){
+  const nama   = $('#cNama').value.trim();
+  const wa     = $('#cWa').value.trim();
+  const alamat = $('#cAlamat').value.trim();
+  const catatan= $('#cCatatan').value.trim();
+
+  if(!nama)   return toast('⚠️ Nama wajib diisi');
+  if(!wa)     return toast('⚠️ Nomor WhatsApp wajib diisi');
+  if(!/^08\d{7,13}$/.test(wa.replace(/\D/g,''))) return toast('⚠️ Nomor WA harus diawali 08 (contoh: 08123456789)');
+  if(!alamat || alamat.length < 10) return toast('⚠️ Alamat lengkap wajib diisi manual (minimal 10 karakter)');
+  if(!catatan) return toast('⚠️ Deskripsi / catatan pesanan wajib diisi');
+  if(!lokasiTerdeteksi) return toast('⚠️ Tekan "Pakai Lokasi Saya" dulu agar ongkir akurat', 3600);
+
+  const { km, ongkir } = hitungOngkir();
+  const queue = nomorAntrianBerikutnya();   // ← OTOMATIS dari riwayat
+
+  const pesanan = {
+    id: 'P' + Date.now(),
+    queue,
+    nama, wa, alamat, catatan,
+    lat: lokasiCustomer.lat, lng: lokasiCustomer.lng,
+    jarak: km, ongkir, ongkirTambahan: 0,
+    items: [], subtotal: 0,
+    total: ongkir,
+    status: 'Baru',
+    waktu: waktuLengkap(),
+    ts: Date.now()
+  };
+
+  DB.pesanan.unshift(pesanan);
+  tambahNotif('🛒 Pesanan Baru #' + pesanan.queue,
+    `${nama} — ${km} km — ${rp(ongkir)}`, 'pesanan');
+  simpan();
+  renderPesanan(); renderNotif(); renderStats(); perbaruiFieldAntrian();
+
+  if(!DB.pengaturan.waAdmin){
+    toast('⚠️ Admin belum mengatur nomor WhatsApp. Salin data pesanan secara manual.', 4200);
+    return;
+  }
+  bukaWA(DB.pengaturan.waAdmin, teksPesananWA(pesanan));
+  toast('✅ Pesanan terkirim ke WhatsApp admin! (Antrian ' + formatAntrian(queue) + ')');
+}
+
+/* ---------- AUTH ---------- */
+let sesiAktif = sessionStorage.getItem('jastipSesi') === '1';
+let modeAuth = 'daftar';
+
+/* Kode akses DIBACA LANGSUNG dari konstanta di atas (tidak bisa diubah dari web) */
+function kodeAksesBenar(input){
+  return String(input || '').trim() === DEFAULT_SECRET_REGISTRATION;
+}
+
+function renderAuth(mode){
+  if(mode) modeAuth = mode;
+  if(DB.akun && modeAuth === 'daftar') modeAuth = 'login';
+  const box = $('#authBox');
+
+  if(modeAuth === 'login'){
+    box.innerHTML = `
+      <h2>🔐 Login Admin</h2>
+      <p class="muted small" style="margin-top:0">Masuk untuk mengelola pesanan &amp; struk.</p>
+      <label>Nama Admin</label><input id="logNama" placeholder="Nama admin">
+      <label>Kata Sandi</label><input id="logSandi" type="password" placeholder="••••••••">
+      <label>Kode Akses <b>*</b></label><input id="logAkses" type="password" placeholder="Kode akses dari pemilik jastip">
+      <span class="hint">Tanpa kode akses yang benar, login tidak akan berhasil.</span>
+      <button class="btn block" id="btnLogin" style="margin-top:16px">🔓 Login</button>
+      ${!DB.akun ? '<button class="btn block ghost" id="btnKeDaftar" style="margin-top:8px">📝 Belum Punya Akun? Daftar</button>' : ''}
+      <p class="small muted" style="text-align:center;margin-top:12px">
+        <a href="#" id="lnkLupa">Lupa sandi? Reset dengan kode khusus</a><br><br>
+        <a href="#" onclick="tampil('customer');return false">← Kembali ke halaman pesanan</a>
+      </p>`;
+    $('#btnLogin').onclick = loginAdmin;
+    $('#lnkLupa').onclick = e => { e.preventDefault(); formReset(); };
+    if($('#btnKeDaftar')) $('#btnKeDaftar').onclick = () => renderAuth('daftar');
+    $('#logSandi').addEventListener('keydown', e => { if(e.key === 'Enter') loginAdmin(); });
+    $('#logAkses').addEventListener('keydown', e => { if(e.key === 'Enter') loginAdmin(); });
+
+  } else {
+    box.innerHTML = `
+      <h2>📝 Daftar Akun Admin</h2>
+      <p class="muted small" style="margin-top:0">
+        Pendaftaran <b>hanya untuk yang memiliki Kode Akses</b>. Tanpa kode akses yang benar, pendaftaran akan ditolak.
+      </p>
+      <label>Nama Admin <b>*</b></label><input id="regNama" placeholder="Nama Anda">
+      <label>Kata Sandi <b>*</b></label><input id="regSandi" type="password" placeholder="Minimal 4 karakter">
+      <label>Nomor WhatsApp <b>*</b></label><input id="regWa" placeholder="08xxxxxxxxxx" inputmode="numeric">
+      <label>Kode Khusus / Sandi Khusus <b>*</b></label><input id="regKode" placeholder="Kode rahasia untuk reset sandi">
+      <span class="hint">Kode ini dipakai kalau Anda lupa kata sandi login.</span>
+      <label>🔐 Kode Akses Pendaftaran <b>*</b></label><input id="regAkses" type="password" placeholder="Kode akses dari pemilik jastip">
+      <span class="hint">Diberikan oleh pemilik / admin jastip. Hanya pemegang kode ini yang bisa mendaftar.</span>
+      <button class="btn block" id="btnDaftar" style="margin-top:16px">✅ Daftar Sekarang</button>
+      <button class="btn block ghost" id="btnKeLogin" style="margin-top:8px">🔓 Login (Sudah Punya Akun)</button>
+      <p class="small muted" style="text-align:center;margin-top:12px">
+        <a href="#" onclick="tampil('customer');return false">← Kembali ke halaman pesanan</a>
+      </p>`;
+    $('#btnDaftar').onclick = daftarAdmin;
+    $('#btnKeLogin').onclick = () => renderAuth('login');
+  }
+}
+
+function daftarAdmin(){
+  const nama = $('#regNama').value.trim();
+  const sandi= $('#regSandi').value;
+  const wa   = $('#regWa').value.trim();
+  const kode = $('#regKode').value.trim();
+  const akses= $('#regAkses').value;
+
+  if(!nama || !sandi || !wa || !kode || !akses) return toast('⚠️ Semua kolom wajib diisi');
+  if(sandi.length < 4) return toast('⚠️ Kata sandi minimal 4 karakter');
+  if(!/^08\d{7,13}$/.test(wa.replace(/\D/g,''))) return toast('⚠️ Nomor WA harus diawali 08');
+  if(!kodeAksesBenar(akses)) return toast('❌ Kode akses salah. Hubungi pemilik jastip.', 3600);
+
+  DB.akun = { nama, sandi, wa, kode };
+  if(!DB.pengaturan.namaAdmin) DB.pengaturan.namaAdmin = nama;
+  if(!DB.pengaturan.waAdmin)   DB.pengaturan.waAdmin   = wa;
+  tambahNotif('🎉 Selamat Datang', 'Akun admin berhasil dibuat. Lengkapi pengaturan toko & titik maps.', 'sistem');
+  simpan(); sesiAktif = true; sessionStorage.setItem('jastipSesi','1');
+  toast('✅ Akun berhasil dibuat!'); masukAdmin();
+}
+
+function loginAdmin(){
+  const nama = $('#logNama').value.trim();
+  const sandi= $('#logSandi').value;
+  const akses= $('#logAkses').value;
+  if(!DB.akun) return toast('❌ Belum ada akun. Silakan daftar dulu.');
+  if(!kodeAksesBenar(akses)) return toast('❌ Kode akses salah');
+  if(nama.toLowerCase() !== DB.akun.nama.toLowerCase() || sandi !== DB.akun.sandi)
+    return toast('❌ Nama atau kata sandi salah');
+  sesiAktif = true; sessionStorage.setItem('jastipSesi','1');
+  toast('🔓 Login berhasil!'); masukAdmin();
+}
+
+function formReset(){
+  $('#modalTitle').textContent = '🔑 Reset Kata Sandi';
+  $('#modalBody').innerHTML = `
+    <label>Kode Khusus</label><input id="rsKode" placeholder="Kode rahasia Anda">
+    <label>Kata Sandi Baru</label><input id="rsSandi" type="password" placeholder="Sandi baru">
+    <button class="btn block" id="btnReset" style="margin-top:16px">Simpan Sandi Baru</button>`;
+  bukaModal();
+  $('#btnReset').onclick = () => {
+    if($('#rsKode').value.trim() !== DB.akun.kode) return toast('❌ Kode khusus salah');
+    if($('#rsSandi').value.length < 4) return toast('⚠️ Sandi minimal 4 karakter');
+    DB.akun.sandi = $('#rsSandi').value; simpan();
+    tutupModal(); toast('✅ Kata sandi berhasil diubah'); renderAuth('login');
+  };
+}
+
+function masukAdmin(){
+  renderAuth('login');
+  $('#adminGreet').textContent = `Halo, ${DB.akun.nama} 👋 — ${DB.pengaturan.namaToko}`;
+  isiFormAdmin();
+  renderPesanan(); renderStats(); renderPreset(); perbaruiFieldAntrian();
+  tampil('admin');
+  setTimeout(() => { initMapAdmin(); mapA.invalidateSize(); }, 200);
+}
+function logoutAdmin(){
+  sesiAktif = false; sessionStorage.removeItem('jastipSesi');
+  toast('👋 Berhasil logout'); tampil('customer');
+}
+
+/* ---------- ADMIN FORM ---------- */
+function isiFormAdmin(){
+  const p = DB.pengaturan;
+  $('#aNamaToko').value   = p.namaToko || '';
+  $('#aNamaAdmin').value  = p.namaAdmin || '';
+  $('#aWaAdmin').value    = p.waAdmin || '';
+  $('#aAlamatToko').value = p.alamatToko || '';
+  $('#aOngkirKm').value   = p.ongkirPerKm || 0;
+  $('#aLat').value        = p.lat;
+  $('#aLng').value        = p.lng;
+  if(DB.akun){
+    $('#akNama').value = DB.akun.nama || '';
+    $('#akWa').value   = DB.akun.wa || '';
+    $('#akKode').value = DB.akun.kode || '';
+  }
+  perbaruiFieldAntrian();
+  terapkanTema();
+}
+
+/* ---------- STATS ---------- */
+function renderStats(){
+  const total = DB.pesanan.reduce((s,p) => s + (p.subtotal + p.ongkir + (p.ongkirTambahan||0)), 0);
+  $('#stPesanan').textContent = DB.pesanan.length;
+  $('#stBaru').textContent    = DB.pesanan.filter(p => p.status === 'Baru').length;
+  $('#stOmzet').textContent   = rp(total);
+  $('#stOngkir').textContent  = rp(DB.pengaturan.ongkirPerKm);
+  const dl = $('#listPelanggan');
+  if(dl) dl.innerHTML = [...new Set(DB.pesanan.map(p => p.nama))].map(n => `<option value="${esc(n)}">`).join('');
+  perbaruiFieldAntrian();
+}
+
+/* ---------- ORDERS ---------- */
+function clsStatus(s){
+  return { 'Baru':'baru', 'Diterima':'diterima', 'Diproses':'proses', 'Selesai':'selesai', 'Batal':'batal' }[s] || '';
+}
+function totalPesanan(p){ return (p.subtotal||0) + (p.ongkir||0) + (p.ongkirTambahan||0); }
+
+function renderPesanan(){
+  const w = $('#daftarPesanan');
+  if(!w) return;
+
+  const maxQueue = nomorTerakhirRiwayat();
+  const nextQueue = nomorAntrianBerikutnya();
+
+  // Panel ringkasan (tanda di history pesanan)
+  const header = `
+    <div class="sum" style="margin-top:0;margin-bottom:12px">
+      <div><span>📚 Total Pesanan di Riwayat</span><b>${DB.pesanan.length}</b></div>
+      <div><span>🏆 Nomor Antrian Terakhir</span><b>${maxQueue ? formatAntrian(maxQueue) : '—'}</b></div>
+      <div class="tot"><span>➡️ Nomor Antrian Berikutnya</span><span>${formatAntrian(nextQueue)}</span></div>
+    </div>`;
+
+  if(!DB.pesanan.length){
+    w.innerHTML = header + '<p class="muted small">Belum ada pesanan masuk. Nomor antrian akan otomatis dimulai dari <b>#0001</b>.</p>';
+    return;
+  }
+
+  const list = [...DB.pesanan].sort((a,b) => (b.ts || 0) - (a.ts || 0));
+  w.innerHTML = header + list.map(p => {
+    const isLatest = Number(p.queue) === maxQueue;
+    return `
+    <div class="order ${isLatest ? 'latest' : ''}">
+      <div class="order-head">
+        <div>
+          <span class="qno">${formatAntrian(p.queue || 0)}</span>
+          <b>${esc(p.nama)}</b>
+          <span class="badge ${clsStatus(p.status)}">${p.status}</span>
+          ${isLatest ? '<span class="badge latest">🏆 NOMOR TERAKHIR</span>' : ''}
+          ${p.manual ? '<span class="badge manual">🧾 STRUK MANUAL</span>' : ''}
+        </div>
+        <div class="muted small">${p.waktu}</div>
+      </div>
+      <div class="small muted">📱 ${esc(p.wa)} • 📍 ${esc(p.alamat).slice(0,90)}${p.alamat.length>90?'…':''}</div>
+      ${p.catatan ? `<div class="small" style="margin-top:4px">📝 ${esc(p.catatan).slice(0,240)}${p.catatan.length>240?'…':''}</div>` : ''}
+      <div class="small">📏 ${p.jarak} km • 🛵 Ongkir dasar ${rp(p.ongkir)}${p.ongkirTambahan ? ' • ➕ Tambahan '+rp(p.ongkirTambahan) : ''}</div>
+      ${p.items && p.items.length ? `<div class="small" style="margin-top:6px">${p.items.map(i => `• ${esc(i.nama)} — ${i.qty}× ${rp(i.harga)}`).join('<br>')}</div>` : ''}
+      <div class="order-total">TOTAL ${rp(totalPesanan(p))}</div>
+      <div class="order-actions">
+        <button class="btn sm" data-act="terima" data-id="${p.id}">✅ Diterima</button>
+        <button class="btn sm blue" data-act="proses" data-id="${p.id}">🔄 Diproses</button>
+        <button class="btn sm" data-act="selesai" data-id="${p.id}">🎉 Selesai</button>
+        <button class="btn sm ghost" data-act="wa" data-id="${p.id}">📱 Kirim WA Manual</button>
+        <button class="btn sm ghost" data-act="edit" data-id="${p.id}">✏️ Edit</button>
+        <button class="btn sm ghost" data-act="struk" data-id="${p.id}">🖨️ Struk</button>
+        <button class="btn sm ghost" data-act="maps" data-id="${p.id}">🗺️ Maps</button>
+        <button class="btn sm danger" data-act="hapus" data-id="${p.id}">🗑️ Hapus</button>
+      </div>
+    </div>`;
+  }).join('');
+  $$('#daftarPesanan [data-act]').forEach(b => b.onclick = () => aksiPesanan(b.dataset.act, b.dataset.id));
+}
+function aksiPesanan(act, id){
+  const p = DB.pesanan.find(x => x.id === id); if(!p) return;
+
+  if(act === 'terima' || act === 'proses' || act === 'selesai'){
+    const st = { terima:'Diterima', proses:'Diproses', selesai:'Selesai' }[act];
+    p.status = st;
+    tambahNotif('📢 Status #' + p.queue + ' → ' + st, `${p.nama}: ${st}`, 'pesanan');
+    simpan(); renderPesanan(); renderStats(); renderNotif();
+    const ok = bukaWA(p.wa, pesanNotifStatus(st, p));
+    if(ok) toast('✅ Status ' + st + ' & WhatsApp dikirim');
+    return;
+  }
+  if(act === 'wa'){ bukaWA(p.wa, pesanNotifStatus(p.status, p)); return; }
+  if(act === 'edit'){ modalEditPesanan(p); return; }
+  if(act === 'struk'){ cetakStrukData(dataStrukDariPesanan(p)); return; }
+  if(act === 'maps'){
+    window.open(`https://www.google.com/maps/search/?api=1&query=${p.lat},${p.lng}`, '_blank');
+    return;
+  }
+  if(act === 'hapus' && confirm(`Hapus pesanan #${p.queue} dari ${p.nama}?`)){
+    DB.pesanan = DB.pesanan.filter(x => x.id !== id);
+    simpan(); renderPesanan(); renderStats(); perbaruiFieldAntrian();
+    toast('🗑️ Pesanan dihapus. Nomor antrian berikutnya otomatis disesuaikan.');
+  }
+}
+function modalEditPesanan(p){
+  $('#modalTitle').textContent = '✏️ Edit Pesanan #' + (p.queue || '-');
+  $('#modalBody').innerHTML = `
+    <label>Nama</label><input id="edNama" value="${esc(p.nama)}">
+    <label>WhatsApp</label><input id="edWa" value="${esc(p.wa)}">
+    <label>Alamat</label><textarea id="edAlamat" rows="3">${esc(p.alamat)}</textarea>
+    <label>Catatan / Deskripsi</label><textarea id="edCatatan" rows="3">${esc(p.catatan || '')}</textarea>
+    <label>Ongkir Tambahan (Rp)</label><input id="edTambahan" type="number" min="0" value="${p.ongkirTambahan||0}">
+    <label>Status</label>
+    <select id="edStatus">
+      ${['Baru','Diterima','Diproses','Selesai','Batal'].map(s => `<option ${s===p.status?'selected':''}>${s}</option>`).join('')}
+    </select>
+    <div class="sum"><div class="tot"><span>TOTAL</span><span id="edTotal">${rp(totalPesanan(p))}</span></div></div>
+    <button class="btn block" id="btnSimpanEdit" style="margin-top:14px">💾 Simpan Perubahan</button>`;
+  bukaModal();
+  const upd = () => {
+    const t = Number($('#edTambahan').value) || 0;
+    $('#edTotal').textContent = rp(p.subtotal + p.ongkir + t);
+  };
+  $('#edTambahan').oninput = upd;
+  $('#btnSimpanEdit').onclick = () => {
+    p.nama = $('#edNama').value.trim() || p.nama;
+    p.wa   = $('#edWa').value.trim() || p.wa;
+    p.alamat = $('#edAlamat').value.trim() || p.alamat;
+    p.catatan = $('#edCatatan').value.trim();
+    p.ongkirTambahan = Number($('#edTambahan').value) || 0;
+    p.status = $('#edStatus').value;
+    p.total = totalPesanan(p);
+    simpan(); tutupModal(); renderPesanan(); renderStats(); toast('✅ Pesanan diperbarui');
+  };
+}
+
+/* ---------- MODAL ---------- */
+function bukaModal(){ $('#modal').classList.remove('hidden'); }
+function tutupModal(){
+  $('#modal').classList.add('hidden');
+  if(window.modalMap){ window.modalMap.remove(); window.modalMap = null; }
+}
+$('#modalClose').onclick = tutupModal;
+$('#modal').onclick = e => { if(e.target.id === 'modal') tutupModal(); };
+
+function bukaPetaPilih(cb){
+  $('#modalTitle').textContent = '🗺️ Pilih Titik Lokasi Pelanggan';
+  $('#modalBody').innerHTML = `
+    <p class="muted small" style="margin-top:0">Klik pada peta untuk menandai lokasi pelanggan.</p>
+    <div id="modalMap" class="map" style="height:320px"></div>
+    <div class="sum">
+      <div><span>Jarak dari toko</span><b id="mmJarak">— km</b></div>
+      <div><span>Ongkir dasar</span><b id="mmOngkir">Rp 0</b></div>
+    </div>
+    <button class="btn block" id="btnPakaiTitik" style="margin-top:12px" disabled>✅ Gunakan Titik Ini</button>`;
+  bukaModal();
+  setTimeout(() => {
+    const m = L.map('modalMap').setView([DB.pengaturan.lat, DB.pengaturan.lng], 12);
+    window.modalMap = m;
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom:19, attribution:'© OpenStreetMap' }).addTo(m);
+    L.circleMarker([DB.pengaturan.lat, DB.pengaturan.lng], { radius:7, color:'#f59e0b', fillOpacity:.9 }).addTo(m).bindPopup('Toko');
+    let mk = null, pilih = null;
+    m.on('click', e => {
+      pilih = e.latlng;
+      if(mk) mk.setLatLng(pilih); else mk = L.marker(pilih, { draggable:true }).addTo(m);
+      const km = haversine({ lat: DB.pengaturan.lat, lng: DB.pengaturan.lng }, { lat: pilih.lat, lng: pilih.lng });
+      const kmr = Math.ceil(km * 10) / 10;
+      $('#mmJarak').textContent = kmr.toFixed(1) + ' km';
+      $('#mmOngkir').textContent = rp(Math.ceil(km) * (DB.pengaturan.ongkirPerKm || 0));
+      $('#btnPakaiTitik').disabled = false;
+    });
+    $('#btnPakaiTitik').onclick = () => {
+      const km = haversine({ lat: DB.pengaturan.lat, lng: DB.pengaturan.lng }, pilih);
+      const kmr = Math.ceil(km * 10) / 10;
+      tutupModal(); cb(kmr, pilih);
+    };
+    setTimeout(() => m.invalidateSize(), 120);
+  }, 80);
+}
+
+/* ---------- STRUK ---------- */
+function tambahBarisStruk(nama='', harga='', qty=1){
+  $('#strukItems').insertAdjacentHTML('beforeend', barisItemHTML(nama, harga, qty));
+  hitungStruk();
+}
+function hitungStruk(){
+  const items = bacaItems($('#strukItems'));
+  const sub = hitungSubtotal(items);
+  const km  = Number($('#strkJarak').value) || 0;
+  const ongkir = Math.ceil(km) * (DB.pengaturan.ongkirPerKm || 0);
+  const tambahan = Number($('#strkTambahan').value) || 0;
+  $('#kSubtotal').textContent = rp(sub);
+  $('#kKm').textContent = km;
+  $('#kOngkir').textContent = rp(ongkir);
+  $('#kTambahan').textContent = rp(tambahan);
+  $('#kTotal').textContent = rp(sub + ongkir + tambahan);
+  return { items, sub, km, ongkir, tambahan, total: sub + ongkir + tambahan };
+}
+function ambilDataStruk(){
+  const h = hitungStruk();
+  const no = nomorAntrianBerikutnya();   // otomatis dari riwayat
+  return {
+    no: formatAntrian(no),
+    waktu: waktuLengkap(),
+    namaAdmin: DB.pengaturan.namaAdmin || DB.akun?.nama || '-',
+    waAdmin: DB.pengaturan.waAdmin || '-',
+    namaToko: DB.pengaturan.namaToko || 'JASTIPKU',
+    alamatToko: DB.pengaturan.alamatToko || '',
+    pelanggan: $('#strkNama').value.trim() || 'Pelanggan',
+    waPelanggan: $('#strkWa').value.trim(),
+    items: h.items, subtotal: h.sub, jarak: h.km,
+    ongkirDasar: h.ongkir, ongkirTambahan: h.tambahan, total: h.total
+  };
+}
+function dataStrukDariPesanan(p){
+  return {
+    no: formatAntrian(p.queue || 0),
+    waktu: p.waktu,
+    namaAdmin: DB.pengaturan.namaAdmin || DB.akun?.nama || '-',
+    waAdmin: DB.pengaturan.waAdmin || '-',
+    namaToko: DB.pengaturan.namaToko || 'JASTIPKU',
+    alamatToko: DB.pengaturan.alamatToko || '',
+    pelanggan: p.nama, waPelanggan: p.wa,
+    items: p.items || [], subtotal: p.subtotal || 0,
+    jarak: p.jarak, ongkirDasar: p.ongkir || 0,
+    ongkirTambahan: p.ongkirTambahan || 0, total: totalPesanan(p)
+  };
+}
+function htmlStruk(d){
+  return `<div class="struk">
+    <div class="ctr"><b style="font-size:14px">${esc(d.namaToko)}</b></div>
+    ${d.alamatToko ? `<div class="ctr">${esc(d.alamatToko)}</div>` : ''}
+    <div class="ctr">Admin: ${esc(d.namaAdmin)}</div>
+    <div class="ctr">WA: ${esc(d.waAdmin)}</div>
+    <hr>
+    <div class="ctr"><b>No. Antrian ${esc(d.no)}</b></div>
+    <div class="line"><span>Waktu</span><span>${esc(d.waktu)}</span></div>
+    <div class="line"><span>Pelanggan</span><span>${esc(d.pelanggan)}</span></div>
+    ${d.waPelanggan ? `<div class="line"><span>WA</span><span>${esc(d.waPelanggan)}</span></div>` : ''}
+    <hr>
+    ${d.items.length ? d.items.map(i => `
+      <div>${esc(i.nama)}</div>
+      <div class="line"><span>&nbsp;&nbsp;${i.qty} x ${rp(i.harga)}</span><span>${rp(i.qty*i.harga)}</span></div>
+    `).join('') : '<div class="ctr">— tanpa rincian barang —</div>'}
+    <hr>
+    <div class="line"><span>Subtotal</span><span>${rp(d.subtotal)}</span></div>
+    <div class="line"><span>Ongkir (${d.jarak} km)</span><span>${rp(d.ongkirDasar)}</span></div>
+    ${d.ongkirTambahan ? `<div class="line"><span>Ongkir Tambahan</span><span>${rp(d.ongkirTambahan)}</span></div>` : ''}
+    <hr>
+    <div class="line" style="font-size:14px"><b>TOTAL</b><b>${rp(d.total)}</b></div>
+    <hr>
+    <div class="ctr">Terima kasih sudah berbelanja</div>
+    <div class="ctr">Barang yang sudah dibeli tidak dapat ditukar</div>
+    <div class="ctr" style="margin-top:6px">~ ${esc(d.namaToko)} ~</div>
+  </div>`;
+}
+function renderPreviewStruk(){
+  const box = $('#previewStruk');
+  if(!box) return;
+  box.innerHTML = htmlStruk(ambilDataStruk());
+}
+function cetakStrukData(d){
+  $('#printArea').innerHTML = htmlStruk(d);
+  setTimeout(() => window.print(), 200);
+}
+
+/* ---------- BLUETOOTH ESC/POS ---------- */
+const W = 32;
+const ENC = new TextEncoder();
+const pj = (l, r) => {
+  l = String(l); r = String(r);
+  const sp = Math.max(1, W - l.length - r.length);
+  return l + ' '.repeat(sp) + r;
+};
+const ct = t => { t = String(t).slice(0, W); return ' '.repeat(Math.max(0, Math.floor((W - t.length)/2))) + t; };
+
+let btDevice = null, btChar = null;
+const BT_SERVICES = [
+  '000018f0-0000-1000-8000-00805f9b34fb',
+  '0000ff00-0000-1000-8000-00805f9b34fb',
+  '0000ffe0-0000-1000-8000-00805f9b34fb',
+  'e7810a71-73ae-499d-8c15-faa9aef0c3f2',
+  '49535343-fe7d-4ae5-8fa9-9fafd205e455'
+];
+async function btConnect(){
+  if(!navigator.bluetooth) throw new Error('Browser tidak mendukung Web Bluetooth');
+  const device = await navigator.bluetooth.requestDevice({
+    acceptAllDevices: true,
+    optionalServices: BT_SERVICES
+  });
+  const server = await device.gatt.connect();
+  let ch = null;
+  for(const uuid of BT_SERVICES){
+    try{
+      const s = await server.getPrimaryService(uuid);
+      const chars = await s.getCharacteristics();
+      for(const c of chars){
+        if(c.properties.write || c.properties.writeWithoutResponse){ ch = c; break; }
+      }
+      if(ch) break;
+    }catch(e){ /* lanjut */ }
+  }
+  if(!ch) throw new Error('Karakteristik printer tidak ditemukan');
+  btDevice = device; btChar = ch;
+  $('#btStatus').textContent = 'Printer Bluetooth: terhubung ke ' + (device.name || 'perangkat');
+  return true;
+}
+async function btWrite(parts){
+  for(const p of parts){
+    for(let i = 0; i < p.length; i += 100){
+      await btChar.writeValue(p.slice(i, i + 100));
+      await new Promise(r => setTimeout(r, 18));
+    }
+  }
+}
+function teksStrukESC(d){
+  const L = [];
+  L.push({ t: ct(d.namaToko.toUpperCase()), a: 1, b: 1, s: 2 });
+  if(d.alamatToko) L.push({ t: ct(d.alamatToko), a: 1 });
+  L.push({ t: ct('Admin: ' + d.namaAdmin), a: 1 });
+  L.push({ t: ct('WA: ' + d.waAdmin), a: 1 });
+  L.push({ t: '--------------------------------' });
+  L.push({ t: ct('NO. ANTRIAN ' + d.no), b: 1, s: 2 });
+  L.push({ t: '--------------------------------' });
+  L.push({ t: pj('Waktu', d.waktu.slice(0, 20)) });
+  L.push({ t: pj('Pelanggan', d.pelanggan.slice(0, 18)) });
+  if(d.waPelanggan) L.push({ t: pj('WA', d.waPelanggan) });
+  L.push({ t: '--------------------------------' });
+  if(d.items.length){
+    d.items.forEach(i => {
+      L.push({ t: i.nama.slice(0, W) });
+      L.push({ t: pj('  ' + i.qty + ' x ' + rp(i.harga), rp(i.qty * i.harga)) });
+    });
+  } else {
+    L.push({ t: ct('- tanpa rincian barang -') });
+  }
+  L.push({ t: '--------------------------------' });
+  L.push({ t: pj('Subtotal', rp(d.subtotal)) });
+  L.push({ t: pj('Ongkir (' + d.jarak + ' km)', rp(d.ongkirDasar)) });
+  if(d.ongkirTambahan) L.push({ t: pj('Ongkir Tambahan', rp(d.ongkirTambahan)) });
+  L.push({ t: '--------------------------------' });
+  L.push({ t: pj('TOTAL', rp(d.total)), b: 1, s: 2 });
+  L.push({ t: '--------------------------------' });
+  L.push({ t: ct('Terima kasih sudah berbelanja'), a: 1 });
+  L.push({ t: ct('~ ' + d.namaToko + ' ~'), a: 1 });
+  return L;
+}
+async function cetakBluetooth(d){
+  try{
+    if(!btChar) await btConnect();
+    const lines = teksStrukESC(d);
+    const parts = [ new Uint8Array([27, 64]) ];
+    for(const ln of lines){
+      parts.push(new Uint8Array([27, 97, ln.a === 1 ? 1 : 0]));
+      parts.push(new Uint8Array([29, 33, ln.s === 2 ? 0x11 : 0]));
+      parts.push(new Uint8Array([27, 69, ln.b ? 1 : 0]));
+      parts.push(ENC.encode(ln.t.replace(/[^\x00-\x7F]/g, '') + '\n'));
+    }
+    parts.push(new Uint8Array([27, 100, 3]));
+    parts.push(new Uint8Array([29, 86, 66, 0]));
+    await btWrite(parts);
+    toast('✅ Struk tercetak via Bluetooth');
+  }catch(err){
+    console.error(err);
+    toast('❌ Bluetooth gagal: ' + err.message + ' — gunakan Cetak/PDF', 4500);
+    $('#btStatus').textContent = 'Printer Bluetooth: gagal terhubung.';
+  }
+}
+
+/* ---------- EVENTS ---------- */
+function bindEvents(){
+  /* Bell */
+  $('#bellBtn').onclick = e => {
+    e.stopPropagation();
+    $('#bellPanel').classList.toggle('hidden');
+    if(!$('#bellPanel').classList.contains('hidden')) bacaSemua();
+  };
+  document.addEventListener('click', e => {
+    if(!$('#bellPanel').classList.contains('hidden') &&
+       !$('#bellPanel').contains(e.target) && e.target !== $('#bellBtn')){
+      $('#bellPanel').classList.add('hidden');
+    }
+  });
+
+  /* Navigasi */
+  $('#btnAdminTop').onclick = () => {
+    if(sesiAktif) masukAdmin(); else { renderAuth(DB.akun ? 'login' : 'daftar'); tampil('auth'); }
+  };
+  $('#btnKeCustomer').onclick = () => tampil('customer');
+  $('#btnLogout').onclick = logoutAdmin;
+
+  /* Tabs */
+  $$('.tab').forEach(t => t.onclick = () => {
+    $$('.tab').forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+    $$('.panel').forEach(p => p.classList.add('hidden'));
+    $('#panel-' + t.dataset.tab).classList.remove('hidden');
+    if(t.dataset.tab === 'toko') setTimeout(() => { initMapAdmin(); mapA.invalidateSize(); }, 120);
+    if(t.dataset.tab === 'struk') perbaruiFieldAntrian();
+  });
+
+  /* Customer — GPS real-time */
+  $('#btnLokasiSaya').onclick = () => mulaiLacakLokasi(true);
+
+  $('#btnKirim').onclick = kirimPesanan;
+
+  /* Admin toko */
+  $('#btnSimpanToko').onclick = () => {
+    DB.pengaturan.namaToko   = $('#aNamaToko').value.trim() || 'JastipKu';
+    DB.pengaturan.namaAdmin  = $('#aNamaAdmin').value.trim();
+    DB.pengaturan.waAdmin    = $('#aWaAdmin').value.trim();
+    DB.pengaturan.alamatToko = $('#aAlamatToko').value.trim();
+    if(DB.akun){
+      DB.akun.nama = DB.pengaturan.namaAdmin || DB.akun.nama;
+      DB.akun.wa   = DB.pengaturan.waAdmin || DB.akun.wa;
+    }
+    simpan();
+    $('#adminGreet').textContent = `Halo, ${DB.akun?.nama || 'Admin'} 👋 — ${DB.pengaturan.namaToko}`;
+    renderStats(); renderPreviewStruk(); toast('✅ Identitas toko disimpan');
+  };
+  $('#btnSimpanOngkir').onclick = () => {
+    DB.pengaturan.ongkirPerKm = Number($('#aOngkirKm').value) || 0;
+    simpan();
+    updateTokoMarker(); renderStats(); renderPreviewStruk();
+    toast('✅ Titik maps & ongkir disimpan');
+  };
+  $('#btnLokasiAdmin').onclick = () => {
+    if(!navigator.geolocation) return toast('⚠️ Browser tidak mendukung GPS');
+    navigator.geolocation.getCurrentPosition(pos => {
+      const ll = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      markerA.setLatLng(ll); mapA.setView(ll, 16); setTokoA(ll);
+      toast('📍 Titik toko diperbarui (jangan lupa Simpan)');
+    }, () => toast('❌ Gagal mengambil lokasi'));
+  };
+  $('#btnCariAdmin').onclick = async () => {
+    const q = $('#aCari').value.trim();
+    if(!q) return toast('⚠️ Masukkan alamat');
+    try{
+      const r = await cariAlamat(q);
+      const ll = { lat: r.lat, lng: r.lng };
+      markerA.setLatLng(ll); mapA.setView(ll, 16); setTokoA(ll);
+      if(!$('#aAlamatToko').value.trim()) $('#aAlamatToko').value = r.nama;
+      toast('✅ Lokasi toko ditemukan');
+    }catch(e){ toast('❌ Lokasi tidak ditemukan'); }
+  };
+
+  /* Tampilan */
+  $('#btnAcak').onclick = () => {
+    DB.pengaturan.tema = paletAcak(); simpan(); terapkanTema(); toast('🎲 Warna otomatis diterapkan');
+  };
+  $('#btnResetTema').onclick = () => {
+    DB.pengaturan.tema = { ...PALET_DEFAULT }; simpan(); terapkanTema(); toast('↺ Tema dikembalikan ke default');
+  };
+  $('#aGrad').onchange = () => { DB.pengaturan.tema.grad = $('#aGrad').checked; simpan(); terapkanTema(); };
+  $$('input[type=color][data-c]').forEach(i => i.oninput = () => {
+    DB.pengaturan.tema[i.dataset.c] = i.value; simpan(); terapkanTema();
+  });
+
+  /* Pesanan bulk */
+  $('#btnWaBaru').onclick = () => {
+    const baru = DB.pesanan.filter(p => p.status === 'Baru');
+    if(!baru.length) return toast('ℹ️ Tidak ada pesanan baru');
+    baru.slice().reverse().forEach(p => bukaWA(p.wa, pesanNotifStatus('Diterima', p)));
+    toast('📤 Membuka WhatsApp untuk ' + baru.length + ' pesanan');
+  };
+  $('#btnHapusSelesai').onclick = () => {
+    const n = DB.pesanan.filter(p => p.status === 'Selesai').length;
+    if(!n) return toast('ℹ️ Tidak ada pesanan selesai');
+    if(!confirm(`Hapus ${n} pesanan yang berstatus Selesai?`)) return;
+    DB.pesanan = DB.pesanan.filter(p => p.status !== 'Selesai');
+    simpan(); renderPesanan(); renderStats(); perbaruiFieldAntrian();
+    toast('🗑️ Pesanan selesai dihapus. Nomor antrian otomatis disesuaikan dari riwayat.');
+  };
+
+  /* Struk */
+  $('#btnTambahItemStruk').onclick = () => tambahBarisStruk();
+  $('#strukItems').addEventListener('click', e => {
+    if(e.target.classList.contains('del')){ e.target.closest('.item-row').remove(); hitungStruk(); renderPreviewStruk(); }
+  });
+  $('#strukItems').addEventListener('input', () => { hitungStruk(); renderPreviewStruk(); });
+  $('#strkJarak').oninput = () => { hitungStruk(); renderPreviewStruk(); };
+  $('#strkTambahan').oninput = () => { hitungStruk(); renderPreviewStruk(); };
+  $('#strkNama').oninput = renderPreviewStruk;
+  $('#strkWa').oninput = renderPreviewStruk;
+
+  /* Sinkronisasi manual (opsional) — nomor antrian tetap otomatis dari riwayat */
+  $('#btnResetAntrian').onclick = () => {
+    perbaruiFieldAntrian();
+    renderPreviewStruk(); renderStats();
+    toast('🔄 Nomor antrian disinkronkan otomatis dari riwayat: ' + formatAntrian(nomorAntrianBerikutnya()));
+  };
+
+  $('#btnPilihTitik').onclick = () => bukaPetaPilih(km => {
+    $('#strkJarak').value = km;
+    hitungStruk(); renderPreviewStruk(); toast('📏 Jarak: ' + km + ' km');
+  });
+  $('#btnPrintBT').onclick = () => cetakBluetooth(ambilDataStruk());
+  $('#btnPrintBrowser').onclick = () => cetakStrukData(ambilDataStruk());
+  $('#btnSimpanRiwayat').onclick = () => {
+    const d = ambilDataStruk();
+    if(!d.items.length && !d.subtotal) return toast('⚠️ Isi minimal satu barang');
+    const queue = nomorAntrianBerikutnya();   // otomatis dari riwayat
+    const p = {
+      id: 'M' + Date.now(),
+      queue,
+      nama: d.pelanggan, wa: d.waPelanggan, alamat: '(struk manual)',
+      catatan: '', lat: DB.pengaturan.lat, lng: DB.pengaturan.lng,
+      jarak: d.jarak, ongkir: d.ongkirDasar, ongkirTambahan: d.ongkirTambahan,
+      items: d.items, subtotal: d.subtotal, total: d.total,
+      status: 'Selesai', waktu: d.waktu, ts: Date.now(), manual: true
+    };
+    DB.pesanan.unshift(p);
+    tambahNotif('🧾 Struk Manual ' + formatAntrian(queue), p.nama + ' — ' + rp(p.total), 'struk');
+    simpan(); renderPesanan(); renderStats(); renderNotif(); perbaruiFieldAntrian();
+    toast('💾 Struk disimpan ke riwayat sebagai ' + formatAntrian(queue));
+  };
+  $('#btnWaStruk').onclick = () => {
+    const d = ambilDataStruk();
+    if(!d.waPelanggan) return toast('⚠️ Isi nomor WhatsApp pelanggan dulu');
+    const msg =
+      `*STRUK ${d.namaToko}*\nNo. Antrian ${d.no}\n${d.waktu}\n─────────────\n` +
+      d.items.map(i => `${i.nama}\n  ${i.qty} x ${rp(i.harga)} = ${rp(i.qty*i.harga)}`).join('\n') +
+      `\n─────────────\nSubtotal: ${rp(d.subtotal)}\nOngkir (${d.jarak} km): ${rp(d.ongkirDasar)}\n` +
+      (d.ongkirTambahan ? `Ongkir Tambahan: ${rp(d.ongkirTambahan)}\n` : '') +
+      `*TOTAL: ${rp(d.total)}*\n─────────────\nTerima kasih 🙏`;
+    bukaWA(d.waPelanggan, msg);
+  };
+
+  /* Notifikasi */
+  $('#btnKirimNotif').onclick = () => {
+    const j = $('#ntJudul').value.trim(), i = $('#ntIsi').value.trim();
+    if(!j || !i) return toast('⚠️ Judul dan isi wajib diisi');
+    tambahNotif(j, i); simpan(); renderNotif();
+    $('#ntJudul').value = ''; $('#ntIsi').value = '';
+    toast('📢 Pemberitahuan dikirim');
+  };
+
+  /* Akun — Kode Akses TIDAK bisa diubah dari sini (dikunci di HTML) */
+  $('#btnSimpanAkun').onclick = () => {
+    if(!DB.akun) return;
+    DB.akun.nama = $('#akNama').value.trim() || DB.akun.nama;
+    DB.akun.wa   = $('#akWa').value.trim() || DB.akun.wa;
+    DB.akun.kode = $('#akKode').value.trim() || DB.akun.kode;
+    const s = $('#akSandi').value;
+    if(s){ if(s.length < 4) return toast('⚠️ Sandi minimal 4 karakter'); DB.akun.sandi = s; }
+
+    DB.pengaturan.namaAdmin = DB.akun.nama;
+    DB.pengaturan.waAdmin   = DB.akun.wa;
+    simpan(); $('#akSandi').value = ''; isiFormAdmin();
+    $('#adminGreet').textContent = `Halo, ${DB.akun.nama} 👋 — ${DB.pengaturan.namaToko}`;
+    toast('✅ Akun diperbarui. (Kode akses dikunci di HTML)');
+  };
+}
+
+/* ---------- INIT ---------- */
+function init(){
+  muat();
+  terapkanTema();
+  bindEvents();
+  renderPreset();
+  renderNotif();
+  renderStats();
+  perbaruiFieldAntrian();
+
+  /* Siapkan satu baris kosong untuk struk manual */
+  $('#strukItems').insertAdjacentHTML('beforeend', barisItemHTML());
+
+  initMapCustomer();
+  lokasiCustomer = { lat: DB.pengaturan.lat, lng: DB.pengaturan.lng };
+  hitungOngkir();
+  renderPreviewStruk();
+
+  renderAuth(DB.akun ? 'login' : 'daftar');
+  if(sesiAktif && DB.akun) masukAdmin(); else tampil('customer');
+
+  /* Deteksi lokasi otomatis di background (real-time) */
+  setTimeout(() => mulaiLacakLokasi(false), 900);
+
+  if(!DB.notifikasi.length){
+    tambahNotif('👋 Selamat Datang di JastipKu',
+      'Isi alamat lengkap manual, tekan "Pakai Lokasi Saya" untuk ongkir otomatis.', 'sistem');
+    simpan(); renderNotif();
+  }
+}
+window.addEventListener('load', init);
+</script>
+</body>
+</html>
