@@ -61,14 +61,48 @@ main{max-width:1120px;margin:0 auto;padding:18px 16px 80px}
 label{display:block;font-size:13px;font-weight:600;margin:12px 0 5px;color:var(--text)}
 label b{color:#ef4444}
 input,textarea,select{width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border);
-  background:var(--surface2);color:var(--text);font-size:14px;font-family:inherit;outline:none}
+  background:var(--surface2);color:var(--text);font-size:14px;font-family:inherit;outline:none;transition:.2s}
 input:focus,textarea:focus,select:focus{border-color:var(--accent)}
 input[readonly]{cursor:not-allowed;background:var(--surface)}
 textarea{resize:vertical}
 .hint{font-size:11.5px;color:var(--muted);margin-top:4px;display:block}
 .row-flex{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 
-/* BUTTONS */
+/* ======== VALIDASI / ERROR ======== */
+.invalid{border-color:#ef4444 !important;
+  box-shadow:0 0 0 3px rgba(239,68,68,.22) !important;
+  animation:fieldShake .45s ease-in-out}
+.invalid-map{outline:3px solid #ef4444;outline-offset:-3px;border-radius:12px;
+  animation:fieldShake .45s ease-in-out}
+.err-msg{display:block;color:#ef4444;font-size:12px;font-weight:700;margin-top:5px;
+  padding:6px 9px;background:rgba(239,68,68,.12);border-left:3px solid #ef4444;border-radius:6px;
+  animation:fadeInErr .3s ease-out}
+.err-msg.wajib{background:rgba(239,68,68,.2);border-left-width:5px;font-size:12.5px}
+@keyframes fieldShake{
+  0%,100%{transform:translateX(0)}
+  20%{transform:translateX(-5px)}
+  40%{transform:translateX(5px)}
+  60%{transform:translateX(-3px)}
+  80%{transform:translateX(3px)}
+}
+@keyframes fadeInErr{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+
+.err-panel{background:linear-gradient(135deg,color-mix(in srgb,#ef4444 24%,var(--surface)),var(--surface));
+  border:2px solid #ef4444;border-radius:var(--radius);padding:16px 18px;margin-bottom:16px;
+  box-shadow:0 8px 26px rgba(239,68,68,.28);
+  animation:errPanelPop .38s cubic-bezier(.34,1.56,.64,1)}
+@keyframes errPanelPop{from{transform:translateY(-10px) scale(.98);opacity:0}to{transform:none;opacity:1}}
+.err-panel h3{margin:0 0 4px;color:#fecaca;display:flex;align-items:center;gap:8px;font-size:15.5px}
+.err-panel .sub{margin:0 0 10px;font-size:12.5px;color:#fca5a5}
+.err-panel ul{margin:0;padding-left:22px}
+.err-panel li{margin:5px 0;font-size:13.5px;line-height:1.5}
+.err-panel li b{color:#fecaca}
+.err-panel li .kode{background:rgba(0,0,0,.35);padding:1px 6px;border-radius:5px;
+  color:#fca5a5;font-family:'Courier New',monospace;font-size:12px;font-weight:700}
+.err-panel .close-btn{float:right;background:none;border:none;color:#fca5a5;font-size:18px;
+  cursor:pointer;line-height:1;margin-top:-4px}
+
+/* ======== BUTTONS ======== */
 .btn{background:var(--accent);color:#04140a;border:none;padding:11px 16px;border-radius:11px;
   font-weight:700;font-size:14px;cursor:pointer;font-family:inherit;transition:.15s}
 .btn:hover{filter:brightness(1.08);transform:translateY(-1px)}
@@ -141,6 +175,7 @@ input[type=color]{height:38px;padding:3px;cursor:pointer}
   border-radius:12px;z-index:2000;font-size:14px;transition:.3s;max-width:90vw;
   box-shadow:0 12px 30px rgba(0,0,0,.45)}
 .toast.show{transform:translate(-50%,0)}
+.toast.err{border-color:#ef4444;background:#3a1114}
 .modal{position:fixed;inset:0;background:rgba(0,0,0,.65);display:grid;place-items:center;z-index:1500;padding:16px}
 .modal-box{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
   width:100%;max-width:520px;max-height:88vh;overflow:auto}
@@ -192,6 +227,14 @@ input[type=color]{height:38px;padding:3px;cursor:pointer}
     <p>Isi alamat lengkap manual, tekan <b>Pakai Lokasi Saya</b> untuk mengambil titik GPS real-time, lalu ongkir dasar langsung terhitung dari jarak tempuh.</p>
   </div>
 
+  <!-- 🚨 PANEL NOTIFIKASI ERROR (muncul otomatis saat kirim dengan data belum lengkap) -->
+  <div id="errPanel" class="err-panel hidden">
+    <button class="close-btn" type="button" onclick="sembunyikanErrPanel()" title="Tutup">✕</button>
+    <h3>⚠️ Data Belum Lengkap</h3>
+    <p class="sub">Pesanan tidak dapat dikirim. Mohon perbaiki bagian berikut ini:</p>
+    <ul id="errList"></ul>
+  </div>
+
   <div class="grid2">
     <div class="card">
       <h2>1️⃣ Data Pemesan</h2>
@@ -223,6 +266,10 @@ input[type=color]{height:38px;padding:3px;cursor:pointer}
       <div class="row-flex" style="margin-top:8px">
         <button class="btn sm ghost" id="btnLokasiSaya">📍 Pakai Lokasi Saya (Otomatis &amp; Real-time)</button>
       </div>
+      <!-- Pesan khusus jika lokasi belum diambil -->
+      <span id="lokasiErr" class="err-msg wajib hidden">
+        🚨 <b>WAJIB GUNAKAN LOKASI!</b> Tekan tombol "📍 Pakai Lokasi Saya" di atas, atau klik/geser pin pada peta agar ongkir otomatis bisa dihitung.
+      </span>
 
       <div class="sum" id="sumOngkir">
         <div><span>📍 Jarak dari admin</span><b id="oJarak">— km</b></div>
@@ -486,10 +533,12 @@ input[type=color]{height:38px;padding:3px;cursor:pointer}
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 /* ============================================================
-   JASTIPKU — APP LOGIC (v5)
+   JASTIPKU — APP LOGIC (v6)
    - Alamat lengkap diisi manual (peta hanya untuk ongkir)
    - Nomor antrian OTOMATIS dari riwayat pesanan (nomor terakhir + 1)
    - Kode Akses/Kode Khusus HANYA bisa diubah di dalam kode HTML ini
+   - ✅ Validasi otomatis saat tombol Kirim ditekan:
+        notifikasi + tanda field yang belum diisi + tanda khusus "WAJIB GUNAKAN LOKASI"
    ============================================================ */
 
 // ═══════════════════════════════════════════════════════════════
@@ -510,13 +559,16 @@ const p2 = n => String(n).padStart(2,'0');
 function waktuLengkap(d = new Date()){
   return `${HARI[d.getDay()]}, ${d.getDate()} ${BULAN[d.getMonth()]} ${d.getFullYear()} — ${p2(d.getHours())}:${p2(d.getMinutes())}`;
 }
-function toast(msg, ms = 2800){
-  const t = $('#toast'); t.textContent = msg; t.classList.add('show');
+function toast(msg, ms = 2800, isErr = false){
+  const t = $('#toast');
+  t.textContent = msg;
+  t.classList.toggle('err', !!isErr);
+  t.classList.add('show');
   clearTimeout(t._tm); t._tm = setTimeout(() => t.classList.remove('show'), ms);
 }
 function bukaWA(nomor, teks){
   let n = String(nomor || '').replace(/\D/g,'');
-  if(!n){ toast('⚠️ Nomor WhatsApp belum diatur'); return false; }
+  if(!n){ toast('⚠️ Nomor WhatsApp belum diatur', 3000, true); return false; }
   if(n.startsWith('0')) n = '62' + n.slice(1);
   if(n.startsWith('8')) n = '62' + n;
   window.open(`https://wa.me/${n}?text=${encodeURIComponent(teks)}`, '_blank');
@@ -530,8 +582,6 @@ function haversine(a, b){
 }
 
 /* ---------- NOMOR ANTRIAN OTOMATIS DARI RIWAYAT ---------- */
-/* Nomor antrian = (nomor terakhir di riwayat pesanan) + 1
-   Kalau riwayat kosong → otomatis mulai dari #0001 (reset otomatis). */
 function nomorAntrianBerikutnya(){
   const maxQ = DB.pesanan.reduce((m, p) => Math.max(m, Number(p.queue) || 0), 0);
   return maxQ + 1;
@@ -574,7 +624,6 @@ function muat(){
     DB = { ...DB, ...d };
     DB.pengaturan = { ...DB.pengaturan, ...(d.pengaturan || {}) };
     DB.pengaturan.tema = { ...PALET_DEFAULT, ...((d.pengaturan || {}).tema || {}) };
-    /* Bersihkan data lama yang tidak dipakai lagi (kode akses & counter manual) */
     if(DB.pengaturan.kodeAkses) delete DB.pengaturan.kodeAkses;
     if('counter' in DB) delete DB.counter;
     DB.notifikasi = d.notifikasi || [];
@@ -721,10 +770,12 @@ function initMapCustomer(){
   markerC.bindPopup('📍 Titik Lokasi Anda (untuk ongkir)');
   markerC.on('dragend', () => {
     lokasiTerdeteksi = true;
+    bersihkanErrorLokasi();
     setLokasiCustomer(markerC.getLatLng());
   });
   mapC.on('click', e => {
     lokasiTerdeteksi = true;
+    bersihkanErrorLokasi();
     markerC.setLatLng(e.latlng); setLokasiCustomer(e.latlng);
   });
 }
@@ -750,7 +801,7 @@ function hitungOngkir(){
 /* ---- GPS real-time ---- */
 function mulaiLacakLokasi(manual = false){
   if(!navigator.geolocation){
-    if(manual) toast('⚠️ Browser tidak mendukung GPS');
+    if(manual) toast('⚠️ Browser tidak mendukung GPS', 3500, true);
     return;
   }
   if(watchIdC !== null){ navigator.geolocation.clearWatch(watchIdC); watchIdC = null; }
@@ -759,6 +810,7 @@ function mulaiLacakLokasi(manual = false){
   watchIdC = navigator.geolocation.watchPosition(pos => {
     const ll = { lat: pos.coords.latitude, lng: pos.coords.longitude };
     lokasiTerdeteksi = true;
+    bersihkanErrorLokasi();
     markerC.setLatLng(ll);
     if(pertama){ mapC.setView(ll, 17); pertama = false; }
     setLokasiCustomer(ll);
@@ -767,7 +819,7 @@ function mulaiLacakLokasi(manual = false){
       toast('📍 Lokasi akurat terdeteksi (akurasi ±' + Math.round(pos.coords.accuracy || 0) + ' m)');
     }
   }, () => {
-    if(manual) toast('❌ Gagal mengambil lokasi. Izinkan akses GPS di browser.', 3800);
+    if(manual) toast('❌ Gagal mengambil lokasi. Izinkan akses GPS di browser.', 3800, true);
   }, { enableHighAccuracy: true, maximumAge: 3000, timeout: 20000 });
 }
 
@@ -814,6 +866,167 @@ function bacaItems(kontainer){
     .filter(i => (i.nama || i.harga) && i.qty > 0);
 }
 function hitungSubtotal(items){ return items.reduce((s,i) => s + i.harga * i.qty, 0); }
+
+/* ============================================================
+   ✅ VALIDASI FORM CUSTOMER
+   ============================================================ */
+function bersihkanErrorLokasi(){
+  $('#mapCustomer').classList.remove('invalid-map');
+  $('#btnLokasiSaya').classList.remove('invalid');
+  const el = $('#lokasiErr');
+  if(el) el.classList.add('hidden');
+}
+function sembunyikanErrPanel(){
+  $('#errPanel').classList.add('hidden');
+}
+function bersihkanSemuaError(){
+  $$('#viewCustomer .invalid').forEach(e => e.classList.remove('invalid'));
+  $$('#viewCustomer .invalid-map').forEach(e => e.classList.remove('invalid-map'));
+  $$('#viewCustomer .err-msg').forEach(e => { if(e.id !== 'lokasiErr') e.remove(); });
+  bersihkanErrorLokasi();
+  sembunyikanErrPanel();
+}
+
+/**
+ * Validasi form customer.
+ * Return: array of { field: 'nama'|'wa'|'alamat'|'catatan'|'lokasi',
+ *                    label, pesan, wajib, el }
+ */
+function validasiCustomer(){
+  const issues = [];
+  const nama    = $('#cNama').value.trim();
+  const waRaw   = $('#cWa').value.trim();
+  const waVal   = waRaw.replace(/\D/g, '');
+  const alamat  = $('#cAlamat').value.trim();
+  const catatan = $('#cCatatan').value.trim();
+
+  // ---- Nama ----
+  if(!nama){
+    issues.push({ field:'nama', label:'Nama Lengkap', el:'#cNama',
+      pesan:'Nama lengkap wajib diisi (minimal 3 karakter).', wajib:true });
+  } else if(nama.length < 3){
+    issues.push({ field:'nama', label:'Nama Lengkap', el:'#cNama',
+      pesan:'Nama terlalu pendek — minimal 3 karakter.', wajib:false });
+  }
+
+  // ---- WhatsApp ----
+  if(!waRaw){
+    issues.push({ field:'wa', label:'Nomor WhatsApp', el:'#cWa',
+      pesan:'Nomor WhatsApp wajib diisi (diawali 08).', wajib:true });
+  } else if(!/^08\d{7,13}$/.test(waVal)){
+    issues.push({ field:'wa', label:'Nomor WhatsApp', el:'#cWa',
+      pesan:'Format salah — harus diawali <span class="kode">08</span> dan 10-15 digit total. Contoh: <span class="kode">08123456789</span>.', wajib:false });
+  }
+
+  // ---- Alamat ----
+  if(!alamat){
+    issues.push({ field:'alamat', label:'Alamat Lengkap', el:'#cAlamat',
+      pesan:'Alamat wajib diisi <b>manual</b> (jalan, no. rumah, RT/RW, kelurahan, kota, patokan).', wajib:true });
+  } else if(alamat.length < 10){
+    issues.push({ field:'alamat', label:'Alamat Lengkap', el:'#cAlamat',
+      pesan:'Alamat terlalu pendek — minimal 10 karakter agar kurir tidak salah alamat.', wajib:false });
+  }
+
+  // ---- Catatan / Deskripsi ----
+  if(!catatan){
+    issues.push({ field:'catatan', label:'Deskripsi / Catatan Pesanan', el:'#cCatatan',
+      pesan:'Deskripsi pesanan wajib diisi (detail barang yang mau dititip).', wajib:true });
+  } else if(catatan.length < 5){
+    issues.push({ field:'catatan', label:'Deskripsi / Catatan Pesanan', el:'#cCatatan',
+      pesan:'Terlalu singkat — tulis minimal 5 karakter, sebaiknya detail.', wajib:false });
+  }
+
+  // ---- LOKASI (wajib) ----
+  if(!lokasiTerdeteksi){
+    issues.push({ field:'lokasi', label:'Lokasi Pengiriman', el:'#btnLokasiSaya',
+      pesan:'🚨 <b>WAJIB GUNAKAN LOKASI!</b> Tekan tombol <span class="kode">📍 Pakai Lokasi Saya</span> di sebelah peta, atau klik/geser pin pada peta agar ongkir otomatis terhitung.', wajib:true });
+  }
+
+  return issues;
+}
+
+/* Tempelkan tanda error langsung di bawah field input */
+function tempelTandaError(selector, pesan, isWajib){
+  const el = $(selector);
+  if(!el) return;
+  el.classList.add('invalid');
+  // Cari anchor: kalau next sibling adalah .hint, taruh setelah hint
+  let anchor = el;
+  if(anchor.nextElementSibling && anchor.nextElementSibling.classList.contains('hint')){
+    anchor = anchor.nextElementSibling;
+  }
+  const msg = document.createElement('span');
+  msg.className = 'err-msg' + (isWajib ? ' wajib' : '');
+  msg.innerHTML = '⚠️ ' + pesan;
+  anchor.parentNode.insertBefore(msg, anchor.nextSibling);
+}
+
+/* Tandai khusus lokasi: peta + tombol merah + pesan "WAJIB GUNAKAN LOKASI" */
+function tandaiErrorLokasi(show){
+  const mapEl = $('#mapCustomer');
+  const btnEl = $('#btnLokasiSaya');
+  const errEl = $('#lokasiErr');
+  if(show){
+    mapEl.classList.add('invalid-map');
+    btnEl.classList.add('invalid');
+    if(errEl) errEl.classList.remove('hidden');
+  }else{
+    bersihkanErrorLokasi();
+  }
+}
+
+/* Bangun panel notifikasi error di atas form */
+function tampilkanErrPanel(issues){
+  const panel = $('#errPanel');
+  const list  = $('#errList');
+  if(!issues.length){ panel.classList.add('hidden'); return; }
+
+  list.innerHTML = issues.map((it, i) => `
+    <li><b>${i+1}. ${it.label}${it.wajib ? ' <span class="kode">WAJIB</span>' : ''}</b> — ${it.pesan}</li>
+  `).join('');
+
+  panel.classList.remove('hidden');
+
+  // Restart animasi pop
+  panel.style.animation = 'none';
+  void panel.offsetWidth;
+  panel.style.animation = '';
+
+  // Scroll ke panel supaya langsung terlihat user
+  setTimeout(() => {
+    panel.scrollIntoView({ behavior:'smooth', block:'start' });
+  }, 80);
+}
+
+/* Terapkan semua tanda error ke field di form */
+function tandaiSemuaError(issues){
+  issues.forEach(it => {
+    if(it.field === 'lokasi'){
+      tandaiErrorLokasi(true);
+    }else{
+      tempelTandaError(it.el, it.pesan, it.wajib);
+    }
+  });
+}
+
+/* Pasang listener untuk auto-clear error saat user memperbaiki */
+function pasangListenerAutoClear(){
+  ['#cNama','#cWa','#cAlamat','#cCatatan'].forEach(sel => {
+    const el = $(sel);
+    if(!el) return;
+    const hapus = () => {
+      el.classList.remove('invalid');
+      const nx = el.nextElementSibling;
+      if(nx && nx.classList.contains('err-msg')) nx.remove();
+      // Kalau tidak ada invalid lagi di form → sembunyikan panel
+      if(!$('#viewCustomer').querySelector('.invalid, .invalid-map')){
+        sembunyikanErrPanel();
+      }
+    };
+    el.addEventListener('input', hapus);
+    el.addEventListener('change', hapus);
+  });
+}
 
 /* ---------- WHATSAPP MESSAGES ---------- */
 function pesanNotifStatus(status, p){
@@ -865,20 +1078,28 @@ function teksPesananWA(p){
 
 /* ---------- CUSTOMER: KIRIM ---------- */
 function kirimPesanan(){
-  const nama   = $('#cNama').value.trim();
-  const wa     = $('#cWa').value.trim();
-  const alamat = $('#cAlamat').value.trim();
-  const catatan= $('#cCatatan').value.trim();
+  // 1) Bersihkan error lama
+  bersihkanSemuaError();
 
-  if(!nama)   return toast('⚠️ Nama wajib diisi');
-  if(!wa)     return toast('⚠️ Nomor WhatsApp wajib diisi');
-  if(!/^08\d{7,13}$/.test(wa.replace(/\D/g,''))) return toast('⚠️ Nomor WA harus diawali 08 (contoh: 08123456789)');
-  if(!alamat || alamat.length < 10) return toast('⚠️ Alamat lengkap wajib diisi manual (minimal 10 karakter)');
-  if(!catatan) return toast('⚠️ Deskripsi / catatan pesanan wajib diisi');
-  if(!lokasiTerdeteksi) return toast('⚠️ Tekan "Pakai Lokasi Saya" dulu agar ongkir akurat', 3600);
+  // 2) Validasi seluruh form
+  const issues = validasiCustomer();
+
+  // 3) Kalau belum lengkap → tampilkan notifikasi + tanda
+  if(issues.length){
+    tandaiSemuaError(issues);
+    tampilkanErrPanel(issues);
+    toast('⚠️ Data belum lengkap — ' + issues.length + ' bagian perlu diperbaiki', 3600, true);
+    return;
+  }
+
+  // 4) Data lengkap → lanjut proses
+  const nama    = $('#cNama').value.trim();
+  const wa      = $('#cWa').value.trim();
+  const alamat  = $('#cAlamat').value.trim();
+  const catatan = $('#cCatatan').value.trim();
 
   const { km, ongkir } = hitungOngkir();
-  const queue = nomorAntrianBerikutnya();   // ← OTOMATIS dari riwayat
+  const queue = nomorAntrianBerikutnya();
 
   const pesanan = {
     id: 'P' + Date.now(),
@@ -900,7 +1121,7 @@ function kirimPesanan(){
   renderPesanan(); renderNotif(); renderStats(); perbaruiFieldAntrian();
 
   if(!DB.pengaturan.waAdmin){
-    toast('⚠️ Admin belum mengatur nomor WhatsApp. Salin data pesanan secara manual.', 4200);
+    toast('⚠️ Admin belum mengatur nomor WhatsApp. Salin data pesanan secara manual.', 4200, true);
     return;
   }
   bukaWA(DB.pengaturan.waAdmin, teksPesananWA(pesanan));
@@ -911,7 +1132,6 @@ function kirimPesanan(){
 let sesiAktif = sessionStorage.getItem('jastipSesi') === '1';
 let modeAuth = 'daftar';
 
-/* Kode akses DIBACA LANGSUNG dari konstanta di atas (tidak bisa diubah dari web) */
 function kodeAksesBenar(input){
   return String(input || '').trim() === DEFAULT_SECRET_REGISTRATION;
 }
@@ -971,10 +1191,10 @@ function daftarAdmin(){
   const kode = $('#regKode').value.trim();
   const akses= $('#regAkses').value;
 
-  if(!nama || !sandi || !wa || !kode || !akses) return toast('⚠️ Semua kolom wajib diisi');
-  if(sandi.length < 4) return toast('⚠️ Kata sandi minimal 4 karakter');
-  if(!/^08\d{7,13}$/.test(wa.replace(/\D/g,''))) return toast('⚠️ Nomor WA harus diawali 08');
-  if(!kodeAksesBenar(akses)) return toast('❌ Kode akses salah. Hubungi pemilik jastip.', 3600);
+  if(!nama || !sandi || !wa || !kode || !akses) return toast('⚠️ Semua kolom wajib diisi', 3000, true);
+  if(sandi.length < 4) return toast('⚠️ Kata sandi minimal 4 karakter', 3000, true);
+  if(!/^08\d{7,13}$/.test(wa.replace(/\D/g,''))) return toast('⚠️ Nomor WA harus diawali 08', 3000, true);
+  if(!kodeAksesBenar(akses)) return toast('❌ Kode akses salah. Hubungi pemilik jastip.', 3600, true);
 
   DB.akun = { nama, sandi, wa, kode };
   if(!DB.pengaturan.namaAdmin) DB.pengaturan.namaAdmin = nama;
@@ -988,10 +1208,10 @@ function loginAdmin(){
   const nama = $('#logNama').value.trim();
   const sandi= $('#logSandi').value;
   const akses= $('#logAkses').value;
-  if(!DB.akun) return toast('❌ Belum ada akun. Silakan daftar dulu.');
-  if(!kodeAksesBenar(akses)) return toast('❌ Kode akses salah');
+  if(!DB.akun) return toast('❌ Belum ada akun. Silakan daftar dulu.', 3000, true);
+  if(!kodeAksesBenar(akses)) return toast('❌ Kode akses salah', 3000, true);
   if(nama.toLowerCase() !== DB.akun.nama.toLowerCase() || sandi !== DB.akun.sandi)
-    return toast('❌ Nama atau kata sandi salah');
+    return toast('❌ Nama atau kata sandi salah', 3000, true);
   sesiAktif = true; sessionStorage.setItem('jastipSesi','1');
   toast('🔓 Login berhasil!'); masukAdmin();
 }
@@ -1004,8 +1224,8 @@ function formReset(){
     <button class="btn block" id="btnReset" style="margin-top:16px">Simpan Sandi Baru</button>`;
   bukaModal();
   $('#btnReset').onclick = () => {
-    if($('#rsKode').value.trim() !== DB.akun.kode) return toast('❌ Kode khusus salah');
-    if($('#rsSandi').value.length < 4) return toast('⚠️ Sandi minimal 4 karakter');
+    if($('#rsKode').value.trim() !== DB.akun.kode) return toast('❌ Kode khusus salah', 3000, true);
+    if($('#rsSandi').value.length < 4) return toast('⚠️ Sandi minimal 4 karakter', 3000, true);
     DB.akun.sandi = $('#rsSandi').value; simpan();
     tutupModal(); toast('✅ Kata sandi berhasil diubah'); renderAuth('login');
   };
@@ -1068,7 +1288,6 @@ function renderPesanan(){
   const maxQueue = nomorTerakhirRiwayat();
   const nextQueue = nomorAntrianBerikutnya();
 
-  // Panel ringkasan (tanda di history pesanan)
   const header = `
     <div class="sum" style="margin-top:0;margin-bottom:12px">
       <div><span>📚 Total Pesanan di Riwayat</span><b>${DB.pesanan.length}</b></div>
@@ -1236,7 +1455,7 @@ function hitungStruk(){
 }
 function ambilDataStruk(){
   const h = hitungStruk();
-  const no = nomorAntrianBerikutnya();   // otomatis dari riwayat
+  const no = nomorAntrianBerikutnya();
   return {
     no: formatAntrian(no),
     waktu: waktuLengkap(),
@@ -1400,7 +1619,7 @@ async function cetakBluetooth(d){
     toast('✅ Struk tercetak via Bluetooth');
   }catch(err){
     console.error(err);
-    toast('❌ Bluetooth gagal: ' + err.message + ' — gunakan Cetak/PDF', 4500);
+    toast('❌ Bluetooth gagal: ' + err.message + ' — gunakan Cetak/PDF', 4500, true);
     $('#btStatus').textContent = 'Printer Bluetooth: gagal terhubung.';
   }
 }
@@ -1439,8 +1658,10 @@ function bindEvents(){
 
   /* Customer — GPS real-time */
   $('#btnLokasiSaya').onclick = () => mulaiLacakLokasi(true);
-
   $('#btnKirim').onclick = kirimPesanan;
+
+  /* Auto-clear tanda error saat user memperbaiki */
+  pasangListenerAutoClear();
 
   /* Admin toko */
   $('#btnSimpanToko').onclick = () => {
@@ -1463,23 +1684,23 @@ function bindEvents(){
     toast('✅ Titik maps & ongkir disimpan');
   };
   $('#btnLokasiAdmin').onclick = () => {
-    if(!navigator.geolocation) return toast('⚠️ Browser tidak mendukung GPS');
+    if(!navigator.geolocation) return toast('⚠️ Browser tidak mendukung GPS', 3000, true);
     navigator.geolocation.getCurrentPosition(pos => {
       const ll = { lat: pos.coords.latitude, lng: pos.coords.longitude };
       markerA.setLatLng(ll); mapA.setView(ll, 16); setTokoA(ll);
       toast('📍 Titik toko diperbarui (jangan lupa Simpan)');
-    }, () => toast('❌ Gagal mengambil lokasi'));
+    }, () => toast('❌ Gagal mengambil lokasi', 3000, true));
   };
   $('#btnCariAdmin').onclick = async () => {
     const q = $('#aCari').value.trim();
-    if(!q) return toast('⚠️ Masukkan alamat');
+    if(!q) return toast('⚠️ Masukkan alamat', 3000, true);
     try{
       const r = await cariAlamat(q);
       const ll = { lat: r.lat, lng: r.lng };
       markerA.setLatLng(ll); mapA.setView(ll, 16); setTokoA(ll);
       if(!$('#aAlamatToko').value.trim()) $('#aAlamatToko').value = r.nama;
       toast('✅ Lokasi toko ditemukan');
-    }catch(e){ toast('❌ Lokasi tidak ditemukan'); }
+    }catch(e){ toast('❌ Lokasi tidak ditemukan', 3000, true); }
   };
 
   /* Tampilan */
@@ -1521,7 +1742,6 @@ function bindEvents(){
   $('#strkNama').oninput = renderPreviewStruk;
   $('#strkWa').oninput = renderPreviewStruk;
 
-  /* Sinkronisasi manual (opsional) — nomor antrian tetap otomatis dari riwayat */
   $('#btnResetAntrian').onclick = () => {
     perbaruiFieldAntrian();
     renderPreviewStruk(); renderStats();
@@ -1536,8 +1756,8 @@ function bindEvents(){
   $('#btnPrintBrowser').onclick = () => cetakStrukData(ambilDataStruk());
   $('#btnSimpanRiwayat').onclick = () => {
     const d = ambilDataStruk();
-    if(!d.items.length && !d.subtotal) return toast('⚠️ Isi minimal satu barang');
-    const queue = nomorAntrianBerikutnya();   // otomatis dari riwayat
+    if(!d.items.length && !d.subtotal) return toast('⚠️ Isi minimal satu barang', 3000, true);
+    const queue = nomorAntrianBerikutnya();
     const p = {
       id: 'M' + Date.now(),
       queue,
@@ -1554,7 +1774,7 @@ function bindEvents(){
   };
   $('#btnWaStruk').onclick = () => {
     const d = ambilDataStruk();
-    if(!d.waPelanggan) return toast('⚠️ Isi nomor WhatsApp pelanggan dulu');
+    if(!d.waPelanggan) return toast('⚠️ Isi nomor WhatsApp pelanggan dulu', 3000, true);
     const msg =
       `*STRUK ${d.namaToko}*\nNo. Antrian ${d.no}\n${d.waktu}\n─────────────\n` +
       d.items.map(i => `${i.nama}\n  ${i.qty} x ${rp(i.harga)} = ${rp(i.qty*i.harga)}`).join('\n') +
@@ -1567,20 +1787,20 @@ function bindEvents(){
   /* Notifikasi */
   $('#btnKirimNotif').onclick = () => {
     const j = $('#ntJudul').value.trim(), i = $('#ntIsi').value.trim();
-    if(!j || !i) return toast('⚠️ Judul dan isi wajib diisi');
+    if(!j || !i) return toast('⚠️ Judul dan isi wajib diisi', 3000, true);
     tambahNotif(j, i); simpan(); renderNotif();
     $('#ntJudul').value = ''; $('#ntIsi').value = '';
     toast('📢 Pemberitahuan dikirim');
   };
 
-  /* Akun — Kode Akses TIDAK bisa diubah dari sini (dikunci di HTML) */
+  /* Akun */
   $('#btnSimpanAkun').onclick = () => {
     if(!DB.akun) return;
     DB.akun.nama = $('#akNama').value.trim() || DB.akun.nama;
     DB.akun.wa   = $('#akWa').value.trim() || DB.akun.wa;
     DB.akun.kode = $('#akKode').value.trim() || DB.akun.kode;
     const s = $('#akSandi').value;
-    if(s){ if(s.length < 4) return toast('⚠️ Sandi minimal 4 karakter'); DB.akun.sandi = s; }
+    if(s){ if(s.length < 4) return toast('⚠️ Sandi minimal 4 karakter', 3000, true); DB.akun.sandi = s; }
 
     DB.pengaturan.namaAdmin = DB.akun.nama;
     DB.pengaturan.waAdmin   = DB.akun.wa;
