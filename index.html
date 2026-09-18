@@ -5,6 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>JastipKu — Jasa Titip Online</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+
+<!-- 🔥 FIREBASE (compat SDK, urutan penting) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-database-compat.js"></script>
+
 <style>
 *{box-sizing:border-box}
 :root{
@@ -69,9 +74,14 @@ textarea{resize:vertical}
 .hint{font-size:11.5px;color:var(--muted);margin-top:4px;display:block}
 .row-flex{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 
-/* ======== VALIDASI / ERROR ======== */
-.invalid{border-color:#ef4444 !important;
-  box-shadow:0 0 0 3px rgba(239,68,68,.22) !important;
+/* SYNC BADGE */
+#syncBadge{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:700;
+  padding:5px 10px;border-radius:20px;background:var(--surface2);border:1px solid var(--border);color:var(--muted)}
+#syncBadge.on{color:var(--accent);border-color:var(--accent)}
+#syncBadge.err{color:#ef4444;border-color:#ef4444}
+
+/* VALIDASI */
+.invalid{border-color:#ef4444 !important;box-shadow:0 0 0 3px rgba(239,68,68,.22) !important;
   animation:fieldShake .45s ease-in-out}
 .invalid-map{outline:3px solid #ef4444;outline-offset:-3px;border-radius:12px;
   animation:fieldShake .45s ease-in-out}
@@ -79,15 +89,9 @@ textarea{resize:vertical}
   padding:6px 9px;background:rgba(239,68,68,.12);border-left:3px solid #ef4444;border-radius:6px;
   animation:fadeInErr .3s ease-out}
 .err-msg.wajib{background:rgba(239,68,68,.2);border-left-width:5px;font-size:12.5px}
-@keyframes fieldShake{
-  0%,100%{transform:translateX(0)}
-  20%{transform:translateX(-5px)}
-  40%{transform:translateX(5px)}
-  60%{transform:translateX(-3px)}
-  80%{transform:translateX(3px)}
-}
+@keyframes fieldShake{0%,100%{transform:translateX(0)}20%{transform:translateX(-5px)}
+  40%{transform:translateX(5px)}60%{transform:translateX(-3px)}80%{transform:translateX(3px)}}
 @keyframes fadeInErr{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
-
 .err-panel{background:linear-gradient(135deg,color-mix(in srgb,#ef4444 24%,var(--surface)),var(--surface));
   border:2px solid #ef4444;border-radius:var(--radius);padding:16px 18px;margin-bottom:16px;
   box-shadow:0 8px 26px rgba(239,68,68,.28);
@@ -103,7 +107,7 @@ textarea{resize:vertical}
 .err-panel .close-btn{float:right;background:none;border:none;color:#fca5a5;font-size:18px;
   cursor:pointer;line-height:1;margin-top:-4px}
 
-/* ======== BUTTONS ======== */
+/* BTN */
 .btn{background:var(--accent);color:#04140a;border:none;padding:11px 16px;border-radius:11px;
   font-weight:700;font-size:14px;cursor:pointer;font-family:inherit;transition:.15s}
 .btn:hover{filter:brightness(1.08);transform:translateY(-1px)}
@@ -120,7 +124,7 @@ textarea{resize:vertical}
 .map{height:300px;border-radius:12px;border:1px solid var(--border);margin-top:8px;z-index:1}
 .leaflet-container{background:var(--surface2)}
 
-/* ITEM ROWS (khusus struk manual admin) */
+/* ITEM ROWS */
 .item-row{display:grid;grid-template-columns:1fr 110px 62px 34px;gap:6px;margin-bottom:6px}
 .item-row input{padding:8px 10px;font-size:13.5px}
 .item-row .del{background:var(--surface2);border:1px solid var(--border);color:#ef4444;border-radius:9px;
@@ -128,8 +132,9 @@ textarea{resize:vertical}
 @media(max-width:600px){.item-row{grid-template-columns:1fr 84px 52px 32px}}
 
 .sum{background:var(--surface2);border-radius:12px;padding:12px;margin-top:12px;font-size:13.5px}
-.sum div{display:flex;justify-content:space-between;padding:3px 0}
+.sum div{display:flex;justify-content:space-between;padding:3px 0;gap:8px}
 .sum .tot{border-top:1px dashed var(--border);margin-top:6px;padding-top:8px;font-size:16px;font-weight:800;color:var(--accent)}
+.sum .sub-line{font-size:12px;color:var(--muted);padding:1px 0 1px 12px}
 
 /* ADMIN */
 .adminbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px}
@@ -203,13 +208,13 @@ input[type=color]{height:38px;padding:3px;cursor:pointer}
 </head>
 <body class="grad">
 
-<!-- ============ TOPBAR ============ -->
 <header class="topbar">
 <div class="brand" onclick="tampil('customer')">
   Jastip<span>Ku</span>
   <small class="tagline">a'didin jastipku</small>
 </div>
   <div class="spacer"></div>
+  <span id="syncBadge" title="Status Sinkronisasi Firebase">☁️ Menghubungkan…</span>
   <button class="icon-btn" id="bellBtn" title="Pemberitahuan">🔔<span id="bellBadge" class="hidden">0</span></button>
   <button class="btn sm ghost" id="btnAdminTop">Admin</button>
 </header>
@@ -231,7 +236,6 @@ input[type=color]{height:38px;padding:3px;cursor:pointer}
     <p>Isi alamat lengkap manual, tekan <b>Pakai Lokasi Saya</b> untuk mengambil titik GPS real-time, lalu ongkir dasar langsung terhitung dari jarak tempuh.</p>
   </div>
 
-  <!-- 🚨 PANEL NOTIFIKASI ERROR (muncul otomatis saat kirim dengan data belum lengkap) -->
   <div id="errPanel" class="err-panel hidden">
     <button class="close-btn" type="button" onclick="sembunyikanErrPanel()" title="Tutup">✕</button>
     <h3>⚠️ Data Belum Lengkap</h3>
@@ -254,7 +258,7 @@ input[type=color]{height:38px;padding:3px;cursor:pointer}
       <span class="hint">⚠️ <b>Isi manual.</b> Peta hanya dipakai menghitung ongkir otomatis, bukan mengambil alamat.</span>
 
       <label>Deskripsi / Catatan / Detail Pesanan <b>*</b></label>
-      <textarea id="cCatatan" rows="5" placeholder="Contoh: tolong beliin 2kg mangga harum manis yang matang, jangan sampai lembek. Titip beli juga obat batuk anak di apotek sebelah minimarket."></textarea>
+      <textarea id="cCatatan" rows="5" placeholder="Contoh: tolong beliin 2kg mangga harum manis yang matang, jangan sampai lembek."></textarea>
       <span class="hint">Tulis detail barang/titipan sedetail mungkin agar admin tidak salah beli.</span>
     </div>
 
@@ -262,7 +266,6 @@ input[type=color]{height:38px;padding:3px;cursor:pointer}
       <h2>2️⃣ Titik Lokasi & Kirim Pesanan</h2>
       <p class="muted small" style="margin-top:0">
         Tekan <b>📍 Pakai Lokasi Saya</b> — titik GPS diambil <b>otomatis, akurat, dan real-time</b>.
-        Lokasi <b>hanya</b> dipakai menghitung ongkir otomatis.
       </p>
 
       <div id="mapCustomer" class="map"></div>
@@ -270,34 +273,35 @@ input[type=color]{height:38px;padding:3px;cursor:pointer}
       <div class="row-flex" style="margin-top:8px">
         <button class="btn sm ghost" id="btnLokasiSaya">📍 Pakai Lokasi Saya (Otomatis &amp; Real-time)</button>
       </div>
-      <!-- Pesan khusus jika lokasi belum diambil -->
       <span id="lokasiErr" class="err-msg wajib hidden">
-        🚨 <b>WAJIB GUNAKAN LOKASI!</b> Tekan tombol "📍 Pakai Lokasi Saya" di atas, atau klik/geser pin pada peta agar ongkir otomatis bisa dihitung.
+        🚨 <b>WAJIB GUNAKAN LOKASI!</b> Tekan tombol "📍 Pakai Lokasi Saya", atau klik/geser pin pada peta.
       </span>
 
       <div class="sum" id="sumOngkir">
         <div><span>📍 Jarak dari admin</span><b id="oJarak">— km</b></div>
         <div><span>🛵 Ongkir dasar</span><b id="oOngkir">Rp 0</b></div>
+        <div id="breakdownOngkir" class="hidden">
+          <div class="sub-line"><span id="bdRate1">—</span></div>
+          <div class="sub-line"><span id="bdRate2">—</span></div>
+        </div>
         <div class="tot"><span>Total Sementara</span><span id="oTotal">Rp 0</span></div>
       </div>
-      <span class="hint">Belum termasuk ongkir tambahan (jika ada) yang akan dikonfirmasi admin.</span>
+      <span class="hint">Perhitungan berdasarkan tiered rate yang diatur admin.</span>
 
       <button class="btn block" id="btnKirim" style="margin-top:14px;font-size:16px;padding:15px">
         📱 Klik Kirim Pesanan via WhatsApp
       </button>
-      <span class="hint" style="text-align:center">
-        Pesanan otomatis terkirim ke WhatsApp admin beserta rincian ongkir.
-      </span>
+      <span class="hint" style="text-align:center">Pesanan otomatis terkirim ke WhatsApp admin.</span>
     </div>
   </div>
 </section>
 
-<!-- ============ AUTH ============ -->
+<!-- AUTH -->
 <section id="viewAuth" class="hidden">
   <div class="card" style="max-width:460px;margin:40px auto" id="authBox"></div>
 </section>
 
-<!-- ============ ADMIN ============ -->
+<!-- ADMIN -->
 <section id="viewAdmin" class="hidden">
   <div class="adminbar">
     <div>
@@ -325,7 +329,7 @@ input[type=color]{height:38px;padding:3px;cursor:pointer}
     <button class="tab" data-tab="akun">👤 Akun</button>
   </div>
 
-  <!-- PANEL TOKO -->
+  <!-- TOKO -->
   <div class="panel" id="panel-toko">
     <div class="grid2">
       <div class="card">
@@ -357,19 +361,40 @@ input[type=color]{height:38px;padding:3px;cursor:pointer}
           <div style="flex:1;min-width:120px"><label style="margin-top:0">Latitude</label><input id="aLat" readonly></div>
           <div style="flex:1;min-width:120px"><label style="margin-top:0">Longitude</label><input id="aLng" readonly></div>
         </div>
-        <label>💰 Ongkir per KM (Rp)</label>
+
+        <!-- 💰 ONGKIR TINGKAT 1 -->
+        <label>💰 Ongkir per KM — Tarif Pertama (Rp)</label>
         <input id="aOngkirKm" type="number" min="0" step="500" placeholder="2500">
-        <span class="hint">Ongkir dasar = jarak (km, dibulatkan ke atas) × tarif per km.</span>
+        <span class="hint">Tarif ini <b>dikali</b> jumlah km pertama.</span>
+
+        <label>📏 Berlaku untuk berapa KM pertama</label>
+        <input id="aBatasKm" type="number" min="0" step="1" placeholder="3">
+        <span class="hint">Contoh: 3 → tarif pertama berlaku untuk 3 km pertama.<br>Isi <b>0</b> untuk menonaktifkan tier 2 (semua km pakai tarif pertama).</span>
+
+        <!-- ➕ ONGKIR TINGKAT 2 -->
+        <label>➕ Ongkir per KM Berikutnya — Tarif Kedua (Rp)</label>
+        <input id="aOngkirKmNext" type="number" min="0" step="500" placeholder="2000">
+        <span class="hint">
+          Tarif ini dikali untuk km <b>sisa setelah melewati batas</b>.<br>
+          <b>Total ongkir = (km1 × tarif1) + (km2 × tarif2)</b> — dijumlah, bukan disamaratakan.
+        </span>
+
+        <div class="sum" style="margin-top:14px">
+          <div><span>Contoh: jarak 5 km, tarif1 Rp 2.500/km (3 km), tarif2 Rp 2.000/km</span></div>
+          <div class="sub-line">= (3 × 2.500) + (2 × 2.000)</div>
+          <div class="tot"><span>Hasil</span><span>Rp 11.500</span></div>
+        </div>
+
         <button class="btn block" id="btnSimpanOngkir" style="margin-top:14px">💾 Simpan Titik & Ongkir</button>
       </div>
     </div>
   </div>
 
-  <!-- PANEL TAMPILAN -->
+  <!-- TAMPILAN -->
   <div class="panel hidden" id="panel-tampilan">
     <div class="card">
       <h2>🎨 Penyetingan Warna Menyeluruh</h2>
-      <p class="muted small" style="margin-top:0">Ubah warna seluruh website sekaligus. Pilih preset, acak otomatis, atau atur warna satu per satu.</p>
+      <p class="muted small" style="margin-top:0">Ubah warna seluruh website sekaligus.</p>
       <div class="row-flex">
         <button class="btn" id="btnAcak">🎲 Warna Otomatis (Acak)</button>
         <button class="btn ghost" id="btnResetTema">↺ Kembalikan Default</button>
@@ -394,7 +419,7 @@ input[type=color]{height:38px;padding:3px;cursor:pointer}
     </div>
   </div>
 
-  <!-- PANEL PESANAN -->
+  <!-- PESANAN -->
   <div class="panel hidden" id="panel-pesanan">
     <div class="card">
       <div class="row-flex" style="justify-content:space-between">
@@ -408,20 +433,17 @@ input[type=color]{height:38px;padding:3px;cursor:pointer}
     </div>
   </div>
 
-  <!-- PANEL STRUK -->
+  <!-- STRUK -->
   <div class="panel hidden" id="panel-struk">
     <div class="grid2">
       <div class="card">
         <h2>🖨️ Input Struk Manual</h2>
         <label>Nomor Antrian <small class="muted">(otomatis dari riwayat)</small></label>
         <div class="row-flex">
-          <input id="strkAntrian" readonly style="flex:1" title="Nomor antrian diambil otomatis dari riwayat pesanan">
+          <input id="strkAntrian" readonly style="flex:1">
           <button class="btn sm ghost" id="btnResetAntrian">🔄 Sinkron dari Riwayat</button>
         </div>
-        <span class="hint">
-          Nomor antrian <b>otomatis</b> = <b>nomor terakhir di riwayat + 1</b>. Jika riwayat kosong,
-          otomatis mulai dari <b>#0001</b>. Reset terjadi <b>otomatis</b> saat history dihapus.
-        </span>
+        <span class="hint">Nomor antrian = nomor terakhir + 1. Reset otomatis saat history dihapus.</span>
 
         <label>Nama Pelanggan</label>
         <input id="strkNama" list="listPelanggan" placeholder="Nama pelanggan">
@@ -442,7 +464,7 @@ input[type=color]{height:38px;padding:3px;cursor:pointer}
           <input id="strkJarak" type="number" min="0" step="0.1" value="0" style="flex:1">
           <button class="btn sm ghost" id="btnPilihTitik">🗺️ Hitung dari Peta</button>
         </div>
-        <span class="hint">Ongkir dasar otomatis: jarak × tarif per km.</span>
+        <span class="hint">Ongkir dasar otomatis pakai tarif tiered yang diatur admin.</span>
 
         <label>Ongkir Tambahan (Rp)</label>
         <input id="strkTambahan" type="number" min="0" step="500" value="0">
@@ -451,6 +473,10 @@ input[type=color]{height:38px;padding:3px;cursor:pointer}
         <div class="sum">
           <div><span>Subtotal Barang</span><b id="kSubtotal">Rp 0</b></div>
           <div><span>Ongkir Dasar (<span id="kKm">0</span> km)</span><b id="kOngkir">Rp 0</b></div>
+          <div id="kBreakdown" class="hidden">
+            <div class="sub-line"><span id="kRate1"></span></div>
+            <div class="sub-line"><span id="kRate2"></span></div>
+          </div>
           <div><span>Ongkir Tambahan</span><b id="kTambahan">Rp 0</b></div>
           <div class="tot"><span>TOTAL</span><span id="kTotal">Rp 0</span></div>
         </div>
@@ -459,7 +485,6 @@ input[type=color]{height:38px;padding:3px;cursor:pointer}
       <div class="card">
         <h2>🧻 Preview Struk</h2>
         <div id="previewStruk"></div>
-
         <div class="row-flex" style="margin-top:14px">
           <button class="btn" id="btnPrintBT">📶 Cetak via Bluetooth</button>
           <button class="btn blue" id="btnPrintBrowser">🖨️ Cetak / Simpan PDF</button>
@@ -473,16 +498,16 @@ input[type=color]{height:38px;padding:3px;cursor:pointer}
     </div>
   </div>
 
-  <!-- PANEL NOTIFIKASI -->
+  <!-- NOTIF -->
   <div class="panel hidden" id="panel-notif">
     <div class="card">
       <h2>🔔 Input Pemberitahuan</h2>
       <label>Judul Pemberitahuan</label>
       <input id="ntJudul" placeholder="Contoh: Libur Lebaran">
       <label>Isi Pesan</label>
-      <textarea id="ntIsi" rows="3" placeholder="Contoh: Tanggal 10-12 tutup, pesanan diproses ulang tanggal 13."></textarea>
+      <textarea id="ntIsi" rows="3" placeholder="Contoh: Tanggal 10-12 tutup."></textarea>
       <button class="btn block" id="btnKirimNotif" style="margin-top:12px">📢 Kirim Pemberitahuan</button>
-      <span class="hint">Pemberitahuan akan muncul di ikon lonceng pojok kanan atas.</span>
+      <span class="hint">Pemberitahuan muncul di ikon lonceng &amp; tersinkron ke semua device.</span>
     </div>
     <div class="card">
       <h3>Daftar Pemberitahuan</h3>
@@ -490,7 +515,7 @@ input[type=color]{height:38px;padding:3px;cursor:pointer}
     </div>
   </div>
 
-  <!-- PANEL AKUN -->
+  <!-- AKUN -->
   <div class="panel hidden" id="panel-akun">
     <div class="card" style="max-width:560px">
       <h2>👤 Pengaturan Akun Admin</h2>
@@ -506,16 +531,13 @@ input[type=color]{height:38px;padding:3px;cursor:pointer}
 
       <button class="btn block" id="btnSimpanAkun" style="margin-top:14px">💾 Simpan Perubahan</button>
 
-      <!-- 🔐 INFORMASI KODE AKSES (dikunci di kode HTML) -->
       <div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:12px;margin-top:16px">
         <b>🔐 Kode Akses (Pendaftaran &amp; Login)</b>
         <p class="small muted" style="margin:6px 0 0">
-          Kode akses <b>tidak dapat diubah dari panel ini</b> demi keamanan.
-          Untuk menggantinya, buka file <b>HTML</b> dengan editor teks (Notepad/VS Code),
-          tekan <b>Ctrl + F</b>, cari tulisan berikut, lalu ganti nilainya:
+          Kode akses <b>tidak dapat diubah dari panel</b> demi keamanan.
+          Buka file <b>HTML</b>, tekan <b>Ctrl + F</b>, cari baris berikut, lalu ganti nilainya:
         </p>
         <pre style="background:#000;color:var(--accent);padding:10px;border-radius:8px;margin-top:8px;overflow:auto;font-size:12px">const DEFAULT_SECRET_REGISTRATION = "aliciapitalaurasalsabila";</pre>
-        <p class="small muted" style="margin:6px 0 0">Hanya orang yang tahu kode ini yang bisa <b>daftar</b> &amp; <b>login</b> sebagai admin.</p>
       </div>
     </div>
   </div>
@@ -537,20 +559,29 @@ input[type=color]{height:38px;padding:3px;cursor:pointer}
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 /* ============================================================
-   JASTIPKU — APP LOGIC (v6)
-   - Alamat lengkap diisi manual (peta hanya untuk ongkir)
-   - Nomor antrian OTOMATIS dari riwayat pesanan (nomor terakhir + 1)
-   - Kode Akses/Kode Khusus HANYA bisa diubah di dalam kode HTML ini
-   - ✅ Validasi otomatis saat tombol Kirim ditekan:
-        notifikasi + tanda field yang belum diisi + tanda khusus "WAJIB GUNAKAN LOKASI"
+   JASTIPKU — v7 (Firebase Realtime + Ongkir Bertingkat)
    ============================================================ */
 
 // ═══════════════════════════════════════════════════════════════
-// 🔐 KODE KHUSUS — CARI DAN EDIT DI SINI
-// Ganti nilai di bawah ini untuk mengubah kode akses Pendaftaran & Login.
-// Kode ini TIDAK BISA diubah dari panel admin (dikunci di kode HTML).
+// 🔐 KODE KHUSUS — UBAH DI SINI
 // ═══════════════════════════════════════════════════════════════
 const DEFAULT_SECRET_REGISTRATION = "aliciapitalaurasalsabila";
+// ═══════════════════════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════════════════
+// 🔥 FIREBASE CONFIG — SUDAH TERISI
+// ═══════════════════════════════════════════════════════════════
+const firebaseConfig = {
+  apiKey: "AIzaSyDIoKGm6XApqAlUwTN3Ss31TID-YgRGyI0",
+  authDomain: "jastipku-b55c4.firebaseapp.com",
+  databaseURL: "https://jastipku-b55c4-default-rtdb.asia-southeast1.firebasedatabase.app/",
+  projectId: "jastipku-b55c4",
+  storageBucket: "jastipku-b55c4.firebasestorage.app",
+  messagingSenderId: "157187152363",
+  appId: "1:157187152363:web:98ba05cdb55687c0c6e1ae",
+  measurementId: "G-V6TDSM2DJL"
+};
+const FB_PATH = 'jastipku/data';  // lokasi data di Realtime DB
 // ═══════════════════════════════════════════════════════════════
 
 const $  = s => document.querySelector(s);
@@ -585,7 +616,31 @@ function haversine(a, b){
   return 2 * R * Math.asin(Math.sqrt(s));
 }
 
-/* ---------- NOMOR ANTRIAN OTOMATIS DARI RIWAYAT ---------- */
+/* ============================================================
+   ⚙️ ONGKIR BERTINGKAT
+   Total ongkir = (km1 × tarif1) + (km2 × tarif2)
+   - tarif1 = DB.pengaturan.ongkirPerKm
+   - tarif2 = DB.pengaturan.ongkirPerKmNext
+   - batas  = DB.pengaturan.batasKm  (kalau 0 → semua pakai tarif1)
+   ============================================================ */
+function hitungOngkirDariKm(km){
+  const rate1 = Number(DB.pengaturan.ongkirPerKm) || 0;
+  const rate2 = DB.pengaturan.ongkirPerKmNext !== undefined && DB.pengaturan.ongkirPerKmNext !== ''
+                ? Number(DB.pengaturan.ongkirPerKmNext) : rate1;
+  const batas = Number(DB.pengaturan.batasKm) || 0;
+  const totalKm = Math.max(0, Math.ceil(km));
+  let km1, km2;
+  if(batas > 0 && totalKm > batas){
+    km1 = batas; km2 = totalKm - batas;
+  }else{
+    km1 = totalKm; km2 = 0;
+  }
+  const ongkir1 = km1 * rate1;
+  const ongkir2 = km2 * (rate2 || rate1);
+  return { km1, km2, rate1, rate2: rate2 || rate1, batas, ongkir1, ongkir2, total: ongkir1 + ongkir2 };
+}
+
+/* ---------- NOMOR ANTRIAN OTOMATIS ---------- */
 function nomorAntrianBerikutnya(){
   const maxQ = DB.pesanan.reduce((m, p) => Math.max(m, Number(p.queue) || 0), 0);
   return maxQ + 1;
@@ -593,15 +648,15 @@ function nomorAntrianBerikutnya(){
 function nomorTerakhirRiwayat(){
   return DB.pesanan.reduce((m, p) => Math.max(m, Number(p.queue) || 0), 0);
 }
-function formatAntrian(n){
-  return '#' + String(n).padStart(4, '0');
-}
+function formatAntrian(n){ return '#' + String(n).padStart(4, '0'); }
 function perbaruiFieldAntrian(){
   const ia = $('#strkAntrian');
   if(ia) ia.value = formatAntrian(nomorAntrianBerikutnya());
 }
 
-/* ---------- STORAGE ---------- */
+/* ============================================================
+   💾 STORAGE + FIREBASE
+   ============================================================ */
 const KEY = 'jastipDB_v2';
 const PALET_DEFAULT = {
   bg:'#0b1120', bg2:'#111c33', surface:'#16213a', surface2:'#1e2c4a',
@@ -614,12 +669,95 @@ let DB = {
     namaToko:'JastipKu', namaAdmin:'', waAdmin:'', alamatToko:'',
     lat: -6.200000, lng: 106.816666,
     ongkirPerKm: 2500,
+    ongkirPerKmNext: 2000,   // ⬅️ tarif kedua
+    batasKm: 3,              // ⬅️ batas km untuk tarif pertama
     tema: { ...PALET_DEFAULT }
   },
   notifikasi: [],
   pesanan: []
 };
-function simpan(){ localStorage.setItem(KEY, JSON.stringify(DB)); }
+
+let firebaseReady = false;
+let applyingRemote = false;
+let fdb = null, dataRef = null;
+
+function updateSyncBadge(state, msg){
+  const el = $('#syncBadge'); if(!el) return;
+  el.classList.remove('on','err');
+  if(state === 'on'){ el.classList.add('on'); el.textContent = '☁️ ' + (msg || 'Tersinkron'); }
+  else if(state === 'err'){ el.classList.add('err'); el.textContent = '⚠️ ' + (msg || 'Offline'); }
+  else { el.textContent = '⏳ ' + (msg || 'Menghubungkan…'); }
+}
+
+function initFirebase(){
+  try{
+    if(typeof firebase === 'undefined'){
+      updateSyncBadge('err', 'Firebase gagal dimuat');
+      console.warn('Firebase SDK tidak terload.');
+      return;
+    }
+    firebase.initializeApp(firebaseConfig);
+    fdb = firebase.database();
+    dataRef = fdb.ref(FB_PATH);
+    updateSyncBadge('wait');
+
+    dataRef.on('value', snap => {
+      const val = snap.val();
+      if(!val){
+        // Firebase kosong → kirim data lokal
+        if(DB.pesanan.length || DB.akun || DB.notifikasi.length || DB.pengaturan.namaAdmin){
+          dataRef.set(DB).then(() => {
+            firebaseReady = true;
+            updateSyncBadge('on', 'Tersinkron');
+            toast('☁️ Data lokal dikirim ke Firebase');
+          }).catch(err => {
+            updateSyncBadge('err', 'Gagal menulis');
+            toast('❌ Firebase: ' + err.message, 4200, true);
+          });
+        }else{
+          firebaseReady = true;
+          updateSyncBadge('on', 'Menunggu data');
+        }
+        return;
+      }
+      applyingRemote = true;
+      mergeRemoteData(val);
+      applyingRemote = false;
+      firebaseReady = true;
+      updateSyncBadge('on', 'Tersinkron');
+      refreshAllUI();
+    }, err => {
+      console.warn('Firebase read error:', err);
+      updateSyncBadge('err', 'Gagal baca');
+      toast('⚠️ Firebase tidak dapat diakses: ' + err.message, 4200, true);
+    });
+  }catch(e){
+    console.error(e);
+    updateSyncBadge('err', 'Offline');
+  }
+}
+
+function mergeRemoteData(val){
+  if(val.pengaturan){
+    DB.pengaturan = { ...DB.pengaturan, ...val.pengaturan };
+    DB.pengaturan.tema = { ...PALET_DEFAULT, ...(val.pengaturan.tema || {}) };
+  }
+  if(Array.isArray(val.notifikasi)) DB.notifikasi = val.notifikasi;
+  if(Array.isArray(val.pesanan))    DB.pesanan    = val.pesanan;
+  if(val.akun) DB.akun = val.akun;
+  try{ localStorage.setItem(KEY, JSON.stringify(DB)); }catch(e){}
+}
+
+function simpan(){
+  try{ localStorage.setItem(KEY, JSON.stringify(DB)); }catch(e){}
+  if(firebaseReady && !applyingRemote && dataRef){
+    dataRef.set(DB).catch(err => {
+      console.warn('Firebase write error:', err);
+      updateSyncBadge('err', 'Gagal simpan');
+    });
+  }
+}
+
 function muat(){
   try{
     const raw = localStorage.getItem(KEY);
@@ -641,7 +779,7 @@ function terapkanTema(){
   ['bg','bg2','surface','surface2','text','muted','accent','accent2','border']
     .forEach(k => r.setProperty('--' + k, t[k]));
   document.body.classList.toggle('grad', !!t.grad);
-  $('#aGrad').checked = !!t.grad;
+  const g = $('#aGrad'); if(g) g.checked = !!t.grad;
   $$('input[type=color][data-c]').forEach(i => { i.value = toHex(t[i.dataset.c]); });
 }
 function toHex(c){
@@ -692,7 +830,7 @@ function renderPreset(){
   });
 }
 
-/* ---------- NOTIFIKASI ---------- */
+/* ---------- NOTIF ---------- */
 function tambahNotif(judul, isi, tipe = 'info'){
   DB.notifikasi.unshift({ id: 'n' + Date.now() + Math.random().toString(36).slice(2,6),
     judul, isi, tipe, waktu: waktuLengkap(), dibaca: false });
@@ -791,18 +929,32 @@ function updateTokoMarker(){
   if(tokoC) tokoC.setLatLng([DB.pengaturan.lat, DB.pengaturan.lng]);
   hitungOngkir();
 }
+
+/* ---------- HITUNG ONGKIR CUSTOMER (pakai tiered) ---------- */
 function hitungOngkir(){
   const j = haversine({ lat: DB.pengaturan.lat, lng: DB.pengaturan.lng }, lokasiCustomer);
   const km = Math.max(0, j);
   const dibulatkan = Math.ceil(km * 10) / 10;
-  const ongkir = Math.ceil(km) * (DB.pengaturan.ongkirPerKm || 0);
+  const r = hitungOngkirDariKm(km);
+
   $('#oJarak').textContent  = dibulatkan.toFixed(1) + ' km';
-  $('#oOngkir').textContent = rp(ongkir);
-  $('#oTotal').textContent  = rp(ongkir);
-  return { km: dibulatkan, ongkir };
+  $('#oOngkir').textContent = rp(r.total);
+  $('#oTotal').textContent  = rp(r.total);
+
+  // Breakdown
+  const bd = $('#breakdownOngkir');
+  if(r.km2 > 0){
+    bd.classList.remove('hidden');
+    $('#bdRate1').textContent = `• ${r.km1} km × ${rp(r.rate1)} = ${rp(r.ongkir1)}`;
+    $('#bdRate2').textContent = `• ${r.km2} km × ${rp(r.rate2)} = ${rp(r.ongkir2)}`;
+  }else{
+    bd.classList.add('hidden');
+    if($('#bdRate1')) $('#bdRate1').textContent = `• ${r.km1} km × ${rp(r.rate1)} = ${rp(r.ongkir1)}`;
+  }
+  return { km: dibulatkan, ongkir: r.total };
 }
 
-/* ---- GPS real-time ---- */
+/* ---------- GPS ---------- */
 function mulaiLacakLokasi(manual = false){
   if(!navigator.geolocation){
     if(manual) toast('⚠️ Browser tidak mendukung GPS', 3500, true);
@@ -827,6 +979,7 @@ function mulaiLacakLokasi(manual = false){
   }, { enableHighAccuracy: true, maximumAge: 3000, timeout: 20000 });
 }
 
+/* ---------- MAP ADMIN ---------- */
 function initMapAdmin(){
   if(mapA) return;
   mapA = L.map('mapAdmin').setView([DB.pengaturan.lat, DB.pengaturan.lng], 13);
@@ -871,18 +1024,14 @@ function bacaItems(kontainer){
 }
 function hitungSubtotal(items){ return items.reduce((s,i) => s + i.harga * i.qty, 0); }
 
-/* ============================================================
-   ✅ VALIDASI FORM CUSTOMER
-   ============================================================ */
+/* ---------- VALIDASI ---------- */
 function bersihkanErrorLokasi(){
   $('#mapCustomer').classList.remove('invalid-map');
   $('#btnLokasiSaya').classList.remove('invalid');
   const el = $('#lokasiErr');
   if(el) el.classList.add('hidden');
 }
-function sembunyikanErrPanel(){
-  $('#errPanel').classList.add('hidden');
-}
+function sembunyikanErrPanel(){ $('#errPanel').classList.add('hidden'); }
 function bersihkanSemuaError(){
   $$('#viewCustomer .invalid').forEach(e => e.classList.remove('invalid'));
   $$('#viewCustomer .invalid-map').forEach(e => e.classList.remove('invalid-map'));
@@ -890,12 +1039,6 @@ function bersihkanSemuaError(){
   bersihkanErrorLokasi();
   sembunyikanErrPanel();
 }
-
-/**
- * Validasi form customer.
- * Return: array of { field: 'nama'|'wa'|'alamat'|'catatan'|'lokasi',
- *                    label, pesan, wajib, el }
- */
 function validasiCustomer(){
   const issues = [];
   const nama    = $('#cNama').value.trim();
@@ -904,7 +1047,6 @@ function validasiCustomer(){
   const alamat  = $('#cAlamat').value.trim();
   const catatan = $('#cCatatan').value.trim();
 
-  // ---- Nama ----
   if(!nama){
     issues.push({ field:'nama', label:'Nama Lengkap', el:'#cNama',
       pesan:'Nama lengkap wajib diisi (minimal 3 karakter).', wajib:true });
@@ -912,49 +1054,37 @@ function validasiCustomer(){
     issues.push({ field:'nama', label:'Nama Lengkap', el:'#cNama',
       pesan:'Nama terlalu pendek — minimal 3 karakter.', wajib:false });
   }
-
-  // ---- WhatsApp ----
   if(!waRaw){
     issues.push({ field:'wa', label:'Nomor WhatsApp', el:'#cWa',
       pesan:'Nomor WhatsApp wajib diisi (diawali 08).', wajib:true });
   } else if(!/^08\d{7,13}$/.test(waVal)){
     issues.push({ field:'wa', label:'Nomor WhatsApp', el:'#cWa',
-      pesan:'Format salah — harus diawali <span class="kode">08</span> dan 10-15 digit total. Contoh: <span class="kode">08123456789</span>.', wajib:false });
+      pesan:'Format salah — harus diawali <span class="kode">08</span> dan 10-15 digit total.', wajib:false });
   }
-
-  // ---- Alamat ----
   if(!alamat){
     issues.push({ field:'alamat', label:'Alamat Lengkap', el:'#cAlamat',
-      pesan:'Alamat wajib diisi <b>manual</b> (jalan, no. rumah, RT/RW, kelurahan, kota, patokan).', wajib:true });
+      pesan:'Alamat wajib diisi <b>manual</b>.', wajib:true });
   } else if(alamat.length < 10){
     issues.push({ field:'alamat', label:'Alamat Lengkap', el:'#cAlamat',
-      pesan:'Alamat terlalu pendek — minimal 10 karakter agar kurir tidak salah alamat.', wajib:false });
+      pesan:'Alamat terlalu pendek — minimal 10 karakter.', wajib:false });
   }
-
-  // ---- Catatan / Deskripsi ----
   if(!catatan){
     issues.push({ field:'catatan', label:'Deskripsi / Catatan Pesanan', el:'#cCatatan',
-      pesan:'Deskripsi pesanan wajib diisi (detail barang yang mau dititip).', wajib:true });
+      pesan:'Deskripsi pesanan wajib diisi.', wajib:true });
   } else if(catatan.length < 5){
     issues.push({ field:'catatan', label:'Deskripsi / Catatan Pesanan', el:'#cCatatan',
-      pesan:'Terlalu singkat — tulis minimal 5 karakter, sebaiknya detail.', wajib:false });
+      pesan:'Terlalu singkat — minimal 5 karakter.', wajib:false });
   }
-
-  // ---- LOKASI (wajib) ----
   if(!lokasiTerdeteksi){
     issues.push({ field:'lokasi', label:'Lokasi Pengiriman', el:'#btnLokasiSaya',
-      pesan:'🚨 <b>WAJIB GUNAKAN LOKASI!</b> Tekan tombol <span class="kode">📍 Pakai Lokasi Saya</span> di sebelah peta, atau klik/geser pin pada peta agar ongkir otomatis terhitung.', wajib:true });
+      pesan:'🚨 <b>WAJIB GUNAKAN LOKASI!</b> Tekan tombol <span class="kode">📍 Pakai Lokasi Saya</span> atau klik/geser pin pada peta.', wajib:true });
   }
-
   return issues;
 }
-
-/* Tempelkan tanda error langsung di bawah field input */
 function tempelTandaError(selector, pesan, isWajib){
   const el = $(selector);
   if(!el) return;
   el.classList.add('invalid');
-  // Cari anchor: kalau next sibling adalah .hint, taruh setelah hint
   let anchor = el;
   if(anchor.nextElementSibling && anchor.nextElementSibling.classList.contains('hint')){
     anchor = anchor.nextElementSibling;
@@ -964,8 +1094,6 @@ function tempelTandaError(selector, pesan, isWajib){
   msg.innerHTML = '⚠️ ' + pesan;
   anchor.parentNode.insertBefore(msg, anchor.nextSibling);
 }
-
-/* Tandai khusus lokasi: peta + tombol merah + pesan "WAJIB GUNAKAN LOKASI" */
 function tandaiErrorLokasi(show){
   const mapEl = $('#mapCustomer');
   const btnEl = $('#btnLokasiSaya');
@@ -978,42 +1106,23 @@ function tandaiErrorLokasi(show){
     bersihkanErrorLokasi();
   }
 }
-
-/* Bangun panel notifikasi error di atas form */
 function tampilkanErrPanel(issues){
   const panel = $('#errPanel');
   const list  = $('#errList');
   if(!issues.length){ panel.classList.add('hidden'); return; }
-
   list.innerHTML = issues.map((it, i) => `
     <li><b>${i+1}. ${it.label}${it.wajib ? ' <span class="kode">WAJIB</span>' : ''}</b> — ${it.pesan}</li>
   `).join('');
-
   panel.classList.remove('hidden');
-
-  // Restart animasi pop
-  panel.style.animation = 'none';
-  void panel.offsetWidth;
-  panel.style.animation = '';
-
-  // Scroll ke panel supaya langsung terlihat user
-  setTimeout(() => {
-    panel.scrollIntoView({ behavior:'smooth', block:'start' });
-  }, 80);
+  panel.style.animation = 'none'; void panel.offsetWidth; panel.style.animation = '';
+  setTimeout(() => panel.scrollIntoView({ behavior:'smooth', block:'start' }), 80);
 }
-
-/* Terapkan semua tanda error ke field di form */
 function tandaiSemuaError(issues){
   issues.forEach(it => {
-    if(it.field === 'lokasi'){
-      tandaiErrorLokasi(true);
-    }else{
-      tempelTandaError(it.el, it.pesan, it.wajib);
-    }
+    if(it.field === 'lokasi') tandaiErrorLokasi(true);
+    else tempelTandaError(it.el, it.pesan, it.wajib);
   });
 }
-
-/* Pasang listener untuk auto-clear error saat user memperbaiki */
 function pasangListenerAutoClear(){
   ['#cNama','#cWa','#cAlamat','#cCatatan'].forEach(sel => {
     const el = $(sel);
@@ -1022,17 +1131,14 @@ function pasangListenerAutoClear(){
       el.classList.remove('invalid');
       const nx = el.nextElementSibling;
       if(nx && nx.classList.contains('err-msg')) nx.remove();
-      // Kalau tidak ada invalid lagi di form → sembunyikan panel
-      if(!$('#viewCustomer').querySelector('.invalid, .invalid-map')){
-        sembunyikanErrPanel();
-      }
+      if(!$('#viewCustomer').querySelector('.invalid, .invalid-map')) sembunyikanErrPanel();
     };
     el.addEventListener('input', hapus);
     el.addEventListener('change', hapus);
   });
 }
 
-/* ---------- WHATSAPP MESSAGES ---------- */
+/* ---------- WA MSG ---------- */
 function pesanNotifStatus(status, p){
   const items = (p.items || []).map((i,n) => `${n+1}. ${i.nama} — ${i.qty}× ${rp(i.harga)} = ${rp(i.qty*i.harga)}`).join('\n');
   const rincian = p.items && p.items.length ? `\n*📦 Rincian Pesanan:*\n${items}\n` : '';
@@ -1045,19 +1151,15 @@ function pesanNotifStatus(status, p){
     `✅ *Pesanan Anda sudah kami terima!*\nNomor antrian: *#${p.queue}*\n` + catatan + rincian +
     `\nSubtotal : ${rp(p.subtotal)}\nOngkir (${p.jarak} km) : ${rp(p.ongkir)}\n` + extra +
     `*TOTAL : ${rp(p.total)}*\n\nKami segera proses ya.` + tail;
-
   if(status === 'Diproses') return head +
     `🔄 *Pesanan Anda sedang DIPROSES*\nNomor antrian: *#${p.queue}*\n` + catatan + rincian +
-    `\n*TOTAL : ${rp(p.total)}*\n\nMohon ditunggu, kami sedang belanja titipan Anda.` + tail;
-
+    `\n*TOTAL : ${rp(p.total)}*\n\nMohon ditunggu.` + tail;
   if(status === 'Selesai') return head +
     `🎉 *PESANAN SELESAI — TERIMA KASIH*\nNomor antrian: *#${p.queue}*\n` + catatan + rincian +
     `\nSubtotal : ${rp(p.subtotal)}\nOngkir (${p.jarak} km) : ${rp(p.ongkir)}\n` + extra +
-    `*TOTAL DIBAYAR : ${rp(p.total)}*\n\nPesanan sudah sampai / diterima.` + tail;
-
+    `*TOTAL DIBAYAR : ${rp(p.total)}*\n\nPesanan sudah sampai.` + tail;
   if(status === 'Batal') return head +
     `❌ *Pesanan Dibatalkan*\nNomor antrian: *#${p.queue}*\n\nMohon maaf pesanan Anda kami batalkan.` + tail;
-
   return head + `Status pesanan: *${status}*` + tail;
 }
 function teksPesananWA(p){
@@ -1080,23 +1182,16 @@ function teksPesananWA(p){
   return L.join('\n');
 }
 
-/* ---------- CUSTOMER: KIRIM ---------- */
+/* ---------- KIRIM PESANAN ---------- */
 function kirimPesanan(){
-  // 1) Bersihkan error lama
   bersihkanSemuaError();
-
-  // 2) Validasi seluruh form
   const issues = validasiCustomer();
-
-  // 3) Kalau belum lengkap → tampilkan notifikasi + tanda
   if(issues.length){
     tandaiSemuaError(issues);
     tampilkanErrPanel(issues);
     toast('⚠️ Data belum lengkap — ' + issues.length + ' bagian perlu diperbaiki', 3600, true);
     return;
   }
-
-  // 4) Data lengkap → lanjut proses
   const nama    = $('#cNama').value.trim();
   const wa      = $('#cWa').value.trim();
   const alamat  = $('#cAlamat').value.trim();
@@ -1107,8 +1202,7 @@ function kirimPesanan(){
 
   const pesanan = {
     id: 'P' + Date.now(),
-    queue,
-    nama, wa, alamat, catatan,
+    queue, nama, wa, alamat, catatan,
     lat: lokasiCustomer.lat, lng: lokasiCustomer.lng,
     jarak: km, ongkir, ongkirTambahan: 0,
     items: [], subtotal: 0,
@@ -1117,7 +1211,6 @@ function kirimPesanan(){
     waktu: waktuLengkap(),
     ts: Date.now()
   };
-
   DB.pesanan.unshift(pesanan);
   tambahNotif('🛒 Pesanan Baru #' + pesanan.queue,
     `${nama} — ${km} km — ${rp(ongkir)}`, 'pesanan');
@@ -1125,7 +1218,7 @@ function kirimPesanan(){
   renderPesanan(); renderNotif(); renderStats(); perbaruiFieldAntrian();
 
   if(!DB.pengaturan.waAdmin){
-    toast('⚠️ Admin belum mengatur nomor WhatsApp. Salin data pesanan secara manual.', 4200, true);
+    toast('⚠️ Admin belum mengatur nomor WhatsApp.', 4200, true);
     return;
   }
   bukaWA(DB.pengaturan.waAdmin, teksPesananWA(pesanan));
@@ -1164,20 +1257,17 @@ function renderAuth(mode){
     if($('#btnKeDaftar')) $('#btnKeDaftar').onclick = () => renderAuth('daftar');
     $('#logSandi').addEventListener('keydown', e => { if(e.key === 'Enter') loginAdmin(); });
     $('#logAkses').addEventListener('keydown', e => { if(e.key === 'Enter') loginAdmin(); });
-
   } else {
     box.innerHTML = `
       <h2>📝 Daftar Akun Admin</h2>
-      <p class="muted small" style="margin-top:0">
-        Pendaftaran <b>hanya untuk yang memiliki Kode Akses</b>. Tanpa kode akses yang benar, pendaftaran akan ditolak.
-      </p>
+      <p class="muted small" style="margin-top:0">Pendaftaran <b>hanya untuk yang memiliki Kode Akses</b>.</p>
       <label>Nama Admin <b>*</b></label><input id="regNama" placeholder="Nama Anda">
       <label>Kata Sandi <b>*</b></label><input id="regSandi" type="password" placeholder="Minimal 4 karakter">
       <label>Nomor WhatsApp <b>*</b></label><input id="regWa" placeholder="08xxxxxxxxxx" inputmode="numeric">
       <label>Kode Khusus / Sandi Khusus <b>*</b></label><input id="regKode" placeholder="Kode rahasia untuk reset sandi">
       <span class="hint">Kode ini dipakai kalau Anda lupa kata sandi login.</span>
       <label>🔐 Kode Akses Pendaftaran <b>*</b></label><input id="regAkses" type="password" placeholder="Kode akses dari pemilik jastip">
-      <span class="hint">Diberikan oleh pemilik / admin jastip. Hanya pemegang kode ini yang bisa mendaftar.</span>
+      <span class="hint">Hanya pemegang kode ini yang bisa mendaftar.</span>
       <button class="btn block" id="btnDaftar" style="margin-top:16px">✅ Daftar Sekarang</button>
       <button class="btn block ghost" id="btnKeLogin" style="margin-top:8px">🔓 Login (Sudah Punya Akun)</button>
       <p class="small muted" style="text-align:center;margin-top:12px">
@@ -1248,7 +1338,7 @@ function logoutAdmin(){
   toast('👋 Berhasil logout'); tampil('customer');
 }
 
-/* ---------- ADMIN FORM ---------- */
+/* ---------- FORM ADMIN ---------- */
 function isiFormAdmin(){
   const p = DB.pengaturan;
   $('#aNamaToko').value   = p.namaToko || '';
@@ -1256,6 +1346,8 @@ function isiFormAdmin(){
   $('#aWaAdmin').value    = p.waAdmin || '';
   $('#aAlamatToko').value = p.alamatToko || '';
   $('#aOngkirKm').value   = p.ongkirPerKm || 0;
+  $('#aOngkirKmNext').value = (p.ongkirPerKmNext !== undefined) ? p.ongkirPerKmNext : '';
+  $('#aBatasKm').value    = (p.batasKm !== undefined) ? p.batasKm : '';
   $('#aLat').value        = p.lat;
   $('#aLng').value        = p.lng;
   if(DB.akun){
@@ -1270,10 +1362,15 @@ function isiFormAdmin(){
 /* ---------- STATS ---------- */
 function renderStats(){
   const total = DB.pesanan.reduce((s,p) => s + (p.subtotal + p.ongkir + (p.ongkirTambahan||0)), 0);
-  $('#stPesanan').textContent = DB.pesanan.length;
-  $('#stBaru').textContent    = DB.pesanan.filter(p => p.status === 'Baru').length;
-  $('#stOmzet').textContent   = rp(total);
-  $('#stOngkir').textContent  = rp(DB.pengaturan.ongkirPerKm);
+  const el = id => document.getElementById(id);
+  if(el('stPesanan')) el('stPesanan').textContent = DB.pesanan.length;
+  if(el('stBaru'))    el('stBaru').textContent    = DB.pesanan.filter(p => p.status === 'Baru').length;
+  if(el('stOmzet'))   el('stOmzet').textContent   = rp(total);
+  if(el('stOngkir')){
+    const base = rp(DB.pengaturan.ongkirPerKm);
+    const next = DB.pengaturan.ongkirPerKmNext ? ' / ' + rp(DB.pengaturan.ongkirPerKmNext) : '';
+    el('stOngkir').textContent = base + next;
+  }
   const dl = $('#listPelanggan');
   if(dl) dl.innerHTML = [...new Set(DB.pesanan.map(p => p.nama))].map(n => `<option value="${esc(n)}">`).join('');
   perbaruiFieldAntrian();
@@ -1288,7 +1385,6 @@ function totalPesanan(p){ return (p.subtotal||0) + (p.ongkir||0) + (p.ongkirTamb
 function renderPesanan(){
   const w = $('#daftarPesanan');
   if(!w) return;
-
   const maxQueue = nomorTerakhirRiwayat();
   const nextQueue = nomorAntrianBerikutnya();
 
@@ -1300,10 +1396,9 @@ function renderPesanan(){
     </div>`;
 
   if(!DB.pesanan.length){
-    w.innerHTML = header + '<p class="muted small">Belum ada pesanan masuk. Nomor antrian akan otomatis dimulai dari <b>#0001</b>.</p>';
+    w.innerHTML = header + '<p class="muted small">Belum ada pesanan masuk.</p>';
     return;
   }
-
   const list = [...DB.pesanan].sort((a,b) => (b.ts || 0) - (a.ts || 0));
   w.innerHTML = header + list.map(p => {
     const isLatest = Number(p.queue) === maxQueue;
@@ -1340,7 +1435,6 @@ function renderPesanan(){
 }
 function aksiPesanan(act, id){
   const p = DB.pesanan.find(x => x.id === id); if(!p) return;
-
   if(act === 'terima' || act === 'proses' || act === 'selesai'){
     const st = { terima:'Diterima', proses:'Diproses', selesai:'Selesai' }[act];
     p.status = st;
@@ -1353,14 +1447,11 @@ function aksiPesanan(act, id){
   if(act === 'wa'){ bukaWA(p.wa, pesanNotifStatus(p.status, p)); return; }
   if(act === 'edit'){ modalEditPesanan(p); return; }
   if(act === 'struk'){ cetakStrukData(dataStrukDariPesanan(p)); return; }
-  if(act === 'maps'){
-    window.open(`https://www.google.com/maps/search/?api=1&query=${p.lat},${p.lng}`, '_blank');
-    return;
-  }
+  if(act === 'maps'){ window.open(`https://www.google.com/maps/search/?api=1&query=${p.lat},${p.lng}`, '_blank'); return; }
   if(act === 'hapus' && confirm(`Hapus pesanan #${p.queue} dari ${p.nama}?`)){
     DB.pesanan = DB.pesanan.filter(x => x.id !== id);
     simpan(); renderPesanan(); renderStats(); perbaruiFieldAntrian();
-    toast('🗑️ Pesanan dihapus. Nomor antrian berikutnya otomatis disesuaikan.');
+    toast('🗑️ Pesanan dihapus.');
   }
 }
 function modalEditPesanan(p){
@@ -1378,11 +1469,10 @@ function modalEditPesanan(p){
     <div class="sum"><div class="tot"><span>TOTAL</span><span id="edTotal">${rp(totalPesanan(p))}</span></div></div>
     <button class="btn block" id="btnSimpanEdit" style="margin-top:14px">💾 Simpan Perubahan</button>`;
   bukaModal();
-  const upd = () => {
+  $('#edTambahan').oninput = () => {
     const t = Number($('#edTambahan').value) || 0;
     $('#edTotal').textContent = rp(p.subtotal + p.ongkir + t);
   };
-  $('#edTambahan').oninput = upd;
   $('#btnSimpanEdit').onclick = () => {
     p.nama = $('#edNama').value.trim() || p.nama;
     p.wa   = $('#edWa').value.trim() || p.wa;
@@ -1411,7 +1501,7 @@ function bukaPetaPilih(cb){
     <div id="modalMap" class="map" style="height:320px"></div>
     <div class="sum">
       <div><span>Jarak dari toko</span><b id="mmJarak">— km</b></div>
-      <div><span>Ongkir dasar</span><b id="mmOngkir">Rp 0</b></div>
+      <div><span>Ongkir dasar (tiered)</span><b id="mmOngkir">Rp 0</b></div>
     </div>
     <button class="btn block" id="btnPakaiTitik" style="margin-top:12px" disabled>✅ Gunakan Titik Ini</button>`;
   bukaModal();
@@ -1426,8 +1516,9 @@ function bukaPetaPilih(cb){
       if(mk) mk.setLatLng(pilih); else mk = L.marker(pilih, { draggable:true }).addTo(m);
       const km = haversine({ lat: DB.pengaturan.lat, lng: DB.pengaturan.lng }, { lat: pilih.lat, lng: pilih.lng });
       const kmr = Math.ceil(km * 10) / 10;
+      const r = hitungOngkirDariKm(km);
       $('#mmJarak').textContent = kmr.toFixed(1) + ' km';
-      $('#mmOngkir').textContent = rp(Math.ceil(km) * (DB.pengaturan.ongkirPerKm || 0));
+      $('#mmOngkir').textContent = rp(r.total);
       $('#btnPakaiTitik').disabled = false;
     });
     $('#btnPakaiTitik').onclick = () => {
@@ -1448,14 +1539,26 @@ function hitungStruk(){
   const items = bacaItems($('#strukItems'));
   const sub = hitungSubtotal(items);
   const km  = Number($('#strkJarak').value) || 0;
-  const ongkir = Math.ceil(km) * (DB.pengaturan.ongkirPerKm || 0);
+  const r = hitungOngkirDariKm(km);
   const tambahan = Number($('#strkTambahan').value) || 0;
+
   $('#kSubtotal').textContent = rp(sub);
   $('#kKm').textContent = km;
-  $('#kOngkir').textContent = rp(ongkir);
+  $('#kOngkir').textContent = rp(r.total);
   $('#kTambahan').textContent = rp(tambahan);
-  $('#kTotal').textContent = rp(sub + ongkir + tambahan);
-  return { items, sub, km, ongkir, tambahan, total: sub + ongkir + tambahan };
+  $('#kTotal').textContent = rp(sub + r.total + tambahan);
+
+  const bd = $('#kBreakdown');
+  if(bd){
+    if(r.km2 > 0){
+      bd.classList.remove('hidden');
+      $('#kRate1').textContent = `• ${r.km1} km × ${rp(r.rate1)} = ${rp(r.ongkir1)}`;
+      $('#kRate2').textContent = `• ${r.km2} km × ${rp(r.rate2)} = ${rp(r.ongkir2)}`;
+    }else{
+      bd.classList.add('hidden');
+    }
+  }
+  return { items, sub, km, ongkir: r.total, tambahan, total: sub + r.total + tambahan, breakdown: r };
 }
 function ambilDataStruk(){
   const h = hitungStruk();
@@ -1470,13 +1573,13 @@ function ambilDataStruk(){
     pelanggan: $('#strkNama').value.trim() || 'Pelanggan',
     waPelanggan: $('#strkWa').value.trim(),
     items: h.items, subtotal: h.sub, jarak: h.km,
-    ongkirDasar: h.ongkir, ongkirTambahan: h.tambahan, total: h.total
+    ongkirDasar: h.ongkir, ongkirTambahan: h.tambahan, total: h.total,
+    breakdown: h.breakdown
   };
 }
 function dataStrukDariPesanan(p){
   return {
-    no: formatAntrian(p.queue || 0),
-    waktu: p.waktu,
+    no: formatAntrian(p.queue || 0), waktu: p.waktu,
     namaAdmin: DB.pengaturan.namaAdmin || DB.akun?.nama || '-',
     waAdmin: DB.pengaturan.waAdmin || '-',
     namaToko: DB.pengaturan.namaToko || 'JASTIPKU',
@@ -1488,6 +1591,9 @@ function dataStrukDariPesanan(p){
   };
 }
 function htmlStruk(d){
+  const bd = d.breakdown && d.breakdown.km2 > 0 ? `
+    <div class="line"><span style="font-size:11px">&nbsp;&nbsp;${d.breakdown.km1} km × ${rp(d.breakdown.rate1)}</span><span style="font-size:11px">${rp(d.breakdown.ongkir1)}</span></div>
+    <div class="line"><span style="font-size:11px">&nbsp;&nbsp;${d.breakdown.km2} km × ${rp(d.breakdown.rate2)}</span><span style="font-size:11px">${rp(d.breakdown.ongkir2)}</span></div>` : '';
   return `<div class="struk">
     <div class="ctr"><b style="font-size:14px">${esc(d.namaToko)}</b></div>
     ${d.alamatToko ? `<div class="ctr">${esc(d.alamatToko)}</div>` : ''}
@@ -1506,6 +1612,7 @@ function htmlStruk(d){
     <hr>
     <div class="line"><span>Subtotal</span><span>${rp(d.subtotal)}</span></div>
     <div class="line"><span>Ongkir (${d.jarak} km)</span><span>${rp(d.ongkirDasar)}</span></div>
+    ${bd}
     ${d.ongkirTambahan ? `<div class="line"><span>Ongkir Tambahan</span><span>${rp(d.ongkirTambahan)}</span></div>` : ''}
     <hr>
     <div class="line" style="font-size:14px"><b>TOTAL</b><b>${rp(d.total)}</b></div>
@@ -1545,21 +1652,16 @@ const BT_SERVICES = [
 ];
 async function btConnect(){
   if(!navigator.bluetooth) throw new Error('Browser tidak mendukung Web Bluetooth');
-  const device = await navigator.bluetooth.requestDevice({
-    acceptAllDevices: true,
-    optionalServices: BT_SERVICES
-  });
+  const device = await navigator.bluetooth.requestDevice({ acceptAllDevices: true, optionalServices: BT_SERVICES });
   const server = await device.gatt.connect();
   let ch = null;
   for(const uuid of BT_SERVICES){
     try{
       const s = await server.getPrimaryService(uuid);
       const chars = await s.getCharacteristics();
-      for(const c of chars){
-        if(c.properties.write || c.properties.writeWithoutResponse){ ch = c; break; }
-      }
+      for(const c of chars){ if(c.properties.write || c.properties.writeWithoutResponse){ ch = c; break; } }
       if(ch) break;
-    }catch(e){ /* lanjut */ }
+    }catch(e){}
   }
   if(!ch) throw new Error('Karakteristik printer tidak ditemukan');
   btDevice = device; btChar = ch;
@@ -1576,12 +1678,12 @@ async function btWrite(parts){
 }
 function teksStrukESC(d){
   const L = [];
-  L.push({ t: ct(d.namaToko.toUpperCase()), a: 1, b: 1, s: 2 });
-  if(d.alamatToko) L.push({ t: ct(d.alamatToko), a: 1 });
-  L.push({ t: ct('Admin: ' + d.namaAdmin), a: 1 });
-  L.push({ t: ct('WA: ' + d.waAdmin), a: 1 });
+  L.push({ t: ct(d.namaToko.toUpperCase()), a:1,b:1,s:2 });
+  if(d.alamatToko) L.push({ t: ct(d.alamatToko), a:1 });
+  L.push({ t: ct('Admin: ' + d.namaAdmin), a:1 });
+  L.push({ t: ct('WA: ' + d.waAdmin), a:1 });
   L.push({ t: '--------------------------------' });
-  L.push({ t: ct('NO. ANTRIAN ' + d.no), b: 1, s: 2 });
+  L.push({ t: ct('NO. ANTRIAN ' + d.no), b:1,s:2 });
   L.push({ t: '--------------------------------' });
   L.push({ t: pj('Waktu', d.waktu.slice(0, 20)) });
   L.push({ t: pj('Pelanggan', d.pelanggan.slice(0, 18)) });
@@ -1592,18 +1694,20 @@ function teksStrukESC(d){
       L.push({ t: i.nama.slice(0, W) });
       L.push({ t: pj('  ' + i.qty + ' x ' + rp(i.harga), rp(i.qty * i.harga)) });
     });
-  } else {
-    L.push({ t: ct('- tanpa rincian barang -') });
-  }
+  } else L.push({ t: ct('- tanpa rincian barang -') });
   L.push({ t: '--------------------------------' });
   L.push({ t: pj('Subtotal', rp(d.subtotal)) });
   L.push({ t: pj('Ongkir (' + d.jarak + ' km)', rp(d.ongkirDasar)) });
+  if(d.breakdown && d.breakdown.km2 > 0){
+    L.push({ t: pj('  ' + d.breakdown.km1 + ' km x ' + rp(d.breakdown.rate1), rp(d.breakdown.ongkir1)) });
+    L.push({ t: pj('  ' + d.breakdown.km2 + ' km x ' + rp(d.breakdown.rate2), rp(d.breakdown.ongkir2)) });
+  }
   if(d.ongkirTambahan) L.push({ t: pj('Ongkir Tambahan', rp(d.ongkirTambahan)) });
   L.push({ t: '--------------------------------' });
-  L.push({ t: pj('TOTAL', rp(d.total)), b: 1, s: 2 });
+  L.push({ t: pj('TOTAL', rp(d.total)), b:1,s:2 });
   L.push({ t: '--------------------------------' });
-  L.push({ t: ct('Terima kasih sudah berbelanja'), a: 1 });
-  L.push({ t: ct('~ ' + d.namaToko + ' ~'), a: 1 });
+  L.push({ t: ct('Terima kasih sudah berbelanja'), a:1 });
+  L.push({ t: ct('~ ' + d.namaToko + ' ~'), a:1 });
   return L;
 }
 async function cetakBluetooth(d){
@@ -1630,7 +1734,6 @@ async function cetakBluetooth(d){
 
 /* ---------- EVENTS ---------- */
 function bindEvents(){
-  /* Bell */
   $('#bellBtn').onclick = e => {
     e.stopPropagation();
     $('#bellPanel').classList.toggle('hidden');
@@ -1643,14 +1746,12 @@ function bindEvents(){
     }
   });
 
-  /* Navigasi */
   $('#btnAdminTop').onclick = () => {
     if(sesiAktif) masukAdmin(); else { renderAuth(DB.akun ? 'login' : 'daftar'); tampil('auth'); }
   };
   $('#btnKeCustomer').onclick = () => tampil('customer');
   $('#btnLogout').onclick = logoutAdmin;
 
-  /* Tabs */
   $$('.tab').forEach(t => t.onclick = () => {
     $$('.tab').forEach(x => x.classList.remove('active'));
     t.classList.add('active');
@@ -1660,11 +1761,8 @@ function bindEvents(){
     if(t.dataset.tab === 'struk') perbaruiFieldAntrian();
   });
 
-  /* Customer — GPS real-time */
   $('#btnLokasiSaya').onclick = () => mulaiLacakLokasi(true);
   $('#btnKirim').onclick = kirimPesanan;
-
-  /* Auto-clear tanda error saat user memperbaiki */
   pasangListenerAutoClear();
 
   /* Admin toko */
@@ -1679,14 +1777,22 @@ function bindEvents(){
     }
     simpan();
     $('#adminGreet').textContent = `Halo, ${DB.akun?.nama || 'Admin'} 👋 — ${DB.pengaturan.namaToko}`;
-    renderStats(); renderPreviewStruk(); toast('✅ Identitas toko disimpan');
+    renderStats(); renderPreviewStruk(); toast('✅ Identitas toko disimpan & tersinkron');
   };
+
+  /* 🔥 Ongkir bertingkat */
   $('#btnSimpanOngkir').onclick = () => {
-    DB.pengaturan.ongkirPerKm = Number($('#aOngkirKm').value) || 0;
+    DB.pengaturan.ongkirPerKm     = Number($('#aOngkirKm').value) || 0;
+    DB.pengaturan.batasKm         = Number($('#aBatasKm').value) || 0;
+    DB.pengaturan.ongkirPerKmNext = Number($('#aOngkirKmNext').value) || 0;
     simpan();
     updateTokoMarker(); renderStats(); renderPreviewStruk();
-    toast('✅ Titik maps & ongkir disimpan');
+    const b = DB.pengaturan.batasKm > 0
+      ? `(tier 1: ${DB.pengaturan.batasKm} km pertama @ ${rp(DB.pengaturan.ongkirPerKm)}, tier 2: sisanya @ ${rp(DB.pengaturan.ongkirPerKmNext)})`
+      : `(semua km @ ${rp(DB.pengaturan.ongkirPerKm)})`;
+    toast('✅ Titik & ongkir disimpan ' + b, 3600);
   };
+
   $('#btnLokasiAdmin').onclick = () => {
     if(!navigator.geolocation) return toast('⚠️ Browser tidak mendukung GPS', 3000, true);
     navigator.geolocation.getCurrentPosition(pos => {
@@ -1712,14 +1818,14 @@ function bindEvents(){
     DB.pengaturan.tema = paletAcak(); simpan(); terapkanTema(); toast('🎲 Warna otomatis diterapkan');
   };
   $('#btnResetTema').onclick = () => {
-    DB.pengaturan.tema = { ...PALET_DEFAULT }; simpan(); terapkanTema(); toast('↺ Tema dikembalikan ke default');
+    DB.pengaturan.tema = { ...PALET_DEFAULT }; simpan(); terapkanTema(); toast('↺ Tema default');
   };
   $('#aGrad').onchange = () => { DB.pengaturan.tema.grad = $('#aGrad').checked; simpan(); terapkanTema(); };
   $$('input[type=color][data-c]').forEach(i => i.oninput = () => {
     DB.pengaturan.tema[i.dataset.c] = i.value; simpan(); terapkanTema();
   });
 
-  /* Pesanan bulk */
+  /* Bulk */
   $('#btnWaBaru').onclick = () => {
     const baru = DB.pesanan.filter(p => p.status === 'Baru');
     if(!baru.length) return toast('ℹ️ Tidak ada pesanan baru');
@@ -1732,7 +1838,7 @@ function bindEvents(){
     if(!confirm(`Hapus ${n} pesanan yang berstatus Selesai?`)) return;
     DB.pesanan = DB.pesanan.filter(p => p.status !== 'Selesai');
     simpan(); renderPesanan(); renderStats(); perbaruiFieldAntrian();
-    toast('🗑️ Pesanan selesai dihapus. Nomor antrian otomatis disesuaikan dari riwayat.');
+    toast('🗑️ Pesanan selesai dihapus.');
   };
 
   /* Struk */
@@ -1747,9 +1853,8 @@ function bindEvents(){
   $('#strkWa').oninput = renderPreviewStruk;
 
   $('#btnResetAntrian').onclick = () => {
-    perbaruiFieldAntrian();
-    renderPreviewStruk(); renderStats();
-    toast('🔄 Nomor antrian disinkronkan otomatis dari riwayat: ' + formatAntrian(nomorAntrianBerikutnya()));
+    perbaruiFieldAntrian(); renderPreviewStruk(); renderStats();
+    toast('🔄 Nomor antrian disinkronkan: ' + formatAntrian(nomorAntrianBerikutnya()));
   };
 
   $('#btnPilihTitik').onclick = () => bukaPetaPilih(km => {
@@ -1763,8 +1868,7 @@ function bindEvents(){
     if(!d.items.length && !d.subtotal) return toast('⚠️ Isi minimal satu barang', 3000, true);
     const queue = nomorAntrianBerikutnya();
     const p = {
-      id: 'M' + Date.now(),
-      queue,
+      id: 'M' + Date.now(), queue,
       nama: d.pelanggan, wa: d.waPelanggan, alamat: '(struk manual)',
       catatan: '', lat: DB.pengaturan.lat, lng: DB.pengaturan.lng,
       jarak: d.jarak, ongkir: d.ongkirDasar, ongkirTambahan: d.ongkirTambahan,
@@ -1774,7 +1878,7 @@ function bindEvents(){
     DB.pesanan.unshift(p);
     tambahNotif('🧾 Struk Manual ' + formatAntrian(queue), p.nama + ' — ' + rp(p.total), 'struk');
     simpan(); renderPesanan(); renderStats(); renderNotif(); perbaruiFieldAntrian();
-    toast('💾 Struk disimpan ke riwayat sebagai ' + formatAntrian(queue));
+    toast('💾 Struk disimpan sebagai ' + formatAntrian(queue));
   };
   $('#btnWaStruk').onclick = () => {
     const d = ambilDataStruk();
@@ -1783,18 +1887,21 @@ function bindEvents(){
       `*STRUK ${d.namaToko}*\nNo. Antrian ${d.no}\n${d.waktu}\n─────────────\n` +
       d.items.map(i => `${i.nama}\n  ${i.qty} x ${rp(i.harga)} = ${rp(i.qty*i.harga)}`).join('\n') +
       `\n─────────────\nSubtotal: ${rp(d.subtotal)}\nOngkir (${d.jarak} km): ${rp(d.ongkirDasar)}\n` +
+      (d.breakdown && d.breakdown.km2 > 0
+        ? `  ${d.breakdown.km1} km x ${rp(d.breakdown.rate1)} = ${rp(d.breakdown.ongkir1)}\n  ${d.breakdown.km2} km x ${rp(d.breakdown.rate2)} = ${rp(d.breakdown.ongkir2)}\n`
+        : '') +
       (d.ongkirTambahan ? `Ongkir Tambahan: ${rp(d.ongkirTambahan)}\n` : '') +
       `*TOTAL: ${rp(d.total)}*\n─────────────\nTerima kasih 🙏`;
     bukaWA(d.waPelanggan, msg);
   };
 
-  /* Notifikasi */
+  /* Notif */
   $('#btnKirimNotif').onclick = () => {
     const j = $('#ntJudul').value.trim(), i = $('#ntIsi').value.trim();
     if(!j || !i) return toast('⚠️ Judul dan isi wajib diisi', 3000, true);
     tambahNotif(j, i); simpan(); renderNotif();
     $('#ntJudul').value = ''; $('#ntIsi').value = '';
-    toast('📢 Pemberitahuan dikirim');
+    toast('📢 Pemberitahuan dikirim ke semua device');
   };
 
   /* Akun */
@@ -1805,13 +1912,30 @@ function bindEvents(){
     DB.akun.kode = $('#akKode').value.trim() || DB.akun.kode;
     const s = $('#akSandi').value;
     if(s){ if(s.length < 4) return toast('⚠️ Sandi minimal 4 karakter', 3000, true); DB.akun.sandi = s; }
-
     DB.pengaturan.namaAdmin = DB.akun.nama;
     DB.pengaturan.waAdmin   = DB.akun.wa;
     simpan(); $('#akSandi').value = ''; isiFormAdmin();
     $('#adminGreet').textContent = `Halo, ${DB.akun.nama} 👋 — ${DB.pengaturan.namaToko}`;
-    toast('✅ Akun diperbarui. (Kode akses dikunci di HTML)');
+    toast('✅ Akun diperbarui.');
   };
+}
+
+/* ---------- REFRESH ALL (dipanggil setelah firebase update) ---------- */
+function refreshAllUI(){
+  terapkanTema();
+  renderPreset();
+  renderNotif();
+  renderStats();
+  renderPesanan();
+  perbaruiFieldAntrian();
+  isiFormAdmin();
+  if(tokoC) tokoC.setLatLng([DB.pengaturan.lat, DB.pengaturan.lng]);
+  if(markerA){ markerA.setLatLng([DB.pengaturan.lat, DB.pengaturan.lng]); if(mapA) mapA.setView([DB.pengaturan.lat, DB.pengaturan.lng]); }
+  hitungOngkir();
+  renderPreviewStruk();
+  if(sesiAktif && DB.akun){
+    $('#adminGreet').textContent = `Halo, ${DB.akun.nama} 👋 — ${DB.pengaturan.namaToko}`;
+  }
 }
 
 /* ---------- INIT ---------- */
@@ -1824,7 +1948,6 @@ function init(){
   renderStats();
   perbaruiFieldAntrian();
 
-  /* Siapkan satu baris kosong untuk struk manual */
   $('#strukItems').insertAdjacentHTML('beforeend', barisItemHTML());
 
   initMapCustomer();
@@ -1835,7 +1958,6 @@ function init(){
   renderAuth(DB.akun ? 'login' : 'daftar');
   if(sesiAktif && DB.akun) masukAdmin(); else tampil('customer');
 
-  /* Deteksi lokasi otomatis di background (real-time) */
   setTimeout(() => mulaiLacakLokasi(false), 900);
 
   if(!DB.notifikasi.length){
@@ -1843,6 +1965,9 @@ function init(){
       'Isi alamat lengkap manual, tekan "Pakai Lokasi Saya" untuk ongkir otomatis.', 'sistem');
     simpan(); renderNotif();
   }
+
+  // 🔥 Sambungkan Firebase SETELAH semua UI siap
+  initFirebase();
 }
 window.addEventListener('load', init);
 </script>
