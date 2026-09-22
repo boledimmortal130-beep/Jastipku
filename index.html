@@ -210,6 +210,58 @@ input[type=color]{height:38px;padding:3px;cursor:pointer}
 }
 .footer-credit b{color:var(--accent)}
 
+/* ===== Tabel Status Pesanan Real-Time ===== */
+.order-table-wrap{
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  padding:16px;
+  margin-top:20px;
+}
+.order-table-wrap h2{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.order-table-scroll{overflow-x:auto;margin-top:6px;border-radius:10px}
+.order-table{
+  width:100%;
+  border-collapse:collapse;
+  margin-top:12px;
+  font-size:13px;
+  min-width:720px;
+}
+.order-table th{
+  background:var(--surface2);
+  color:var(--muted);
+  text-transform:uppercase;
+  font-size:11px;
+  letter-spacing:.5px;
+  padding:9px 10px;
+  text-align:left;
+  border-bottom:2px solid var(--border);
+  white-space:nowrap;
+}
+.order-table td{
+  padding:10px;
+  border-bottom:1px solid var(--border);
+  vertical-align:middle;
+}
+.order-table tr:hover td{background:rgba(255,255,255,.03)}
+.order-table .q-badge{
+  font-family:'Courier New',monospace;
+  font-weight:800;
+  color:var(--accent);
+  background:var(--surface2);
+  border:1px solid var(--border);
+  padding:2px 8px;
+  border-radius:6px;
+  white-space:nowrap;
+}
+.order-table .nama-cell{font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.order-table .waktu-cell{white-space:nowrap}
+.status-badge{font-size:10.5px;font-weight:700;padding:4px 10px;border-radius:20px;display:inline-block;white-space:nowrap}
+.status-badge.baru{background:#f59e0b;color:#3a2400}
+.status-badge.diterima{background:#8b5cf6;color:#fff}
+.status-badge.diproses{background:var(--accent2);color:#04121c}
+.status-badge.selesai{background:var(--accent);color:#04140a}
+.status-badge.batal{background:#ef4444;color:#fff}
 </style>
 </head>
 <body class="grad">
@@ -300,6 +352,30 @@ input[type=color]{height:38px;padding:3px;cursor:pointer}
       <span class="hint" style="text-align:center">Pesanan otomatis terkirim ke WhatsApp admin.</span>
     </div>
   </div>
+
+  <!-- ===== STATUS PESANAN REAL-TIME ===== -->
+  <div class="order-table-wrap" id="customerOrdersWrap">
+    <h2>📊 Status Pesanan <span class="muted small">(Real-time • otomatis dari admin)</span></h2>
+    <div class="order-table-scroll">
+      <table class="order-table">
+        <thead>
+          <tr>
+            <th>No. Antrian</th>
+            <th>Nama</th>
+            <th>Hari</th>
+            <th>Tanggal</th>
+            <th>Bulan</th>
+            <th>Tahun</th>
+            <th>Jam</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="customerOrdersBody"></tbody>
+      </table>
+    </div>
+    <p class="muted small" id="customerOrdersEmpty" style="margin-top:10px">Belum ada pesanan yang tercatat.</p>
+  </div>
+
 </section>
 
 <section id="viewAuth" class="hidden">
@@ -569,14 +645,10 @@ input[type=color]{height:38px;padding:3px;cursor:pointer}
 </section>
 
 </main>
-</main>
 
 <footer class="footer-credit">
   © 2026 <b>jastipku</b> a'didin
 </footer>
-
-<div class="toast" id="toast"></div>
-
 
 <div class="toast" id="toast"></div>
 
@@ -592,11 +664,11 @@ input[type=color]{height:38px;padding:3px;cursor:pointer}
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 /* ============================================================
-   JASTIPKU — v9
+   JASTIPKU — v10
    + Ongkir: 1 km pertama @ tarif1, sisanya @ tarif tambahan
    + Cetak struk Bluetooth langsung dari History Pesanan
    + Input Struk Manual: nomor antrian → auto isi nama & WA
-   + Format ESC/POS dirapikan (header 2x, item wrap, harga rata kanan)
+   + Tabel Status Pesanan Real-Time di sisi customer
    ============================================================ */
 
 const DEFAULT_SECRET_REGISTRATION = "aliciapitalaurasalsabila";
@@ -786,7 +858,7 @@ function mergeRemoteData(val){
   if(val.pengaturan){
     DB.pengaturan = { ...DB.pengaturan, ...val.pengaturan };
     DB.pengaturan.tema = { ...PALET_DEFAULT, ...(val.pengaturan.tema || {}) };
-    DB.pengaturan.batasKm = 1; // paksa ke 1
+    DB.pengaturan.batasKm = 1;
   }
   if(Array.isArray(val.notifikasi)) DB.notifikasi = val.notifikasi;
   if(Array.isArray(val.pesanan))    DB.pesanan    = val.pesanan;
@@ -1260,7 +1332,9 @@ function kirimPesanan(){
   tambahNotif('🛒 Pesanan Baru #' + pesanan.queue,
     `${nama} — ${km} km — ${rp(ongkir)}`, 'pesanan');
   simpan();
-  renderPesanan(); renderNotif(); renderStats(); perbaruiFieldAntrian();
+  renderPesanan(); renderNotif(); renderStats();
+  renderCustomerOrders();
+  perbaruiFieldAntrian();
 
   if(!DB.pengaturan.waAdmin){
     toast('⚠️ Admin belum mengatur nomor WhatsApp.', 4200, true);
@@ -1420,6 +1494,53 @@ function renderStats(){
   perbaruiFieldAntrian();
 }
 
+/* ---------- TABEL STATUS REAL-TIME CUSTOMER ---------- */
+function partsTanggal(ts){
+  const d = ts ? new Date(ts) : new Date();
+  return {
+    hari: HARI[d.getDay()],
+    tanggal: p2(d.getDate()),
+    bulan: BULAN[d.getMonth()],
+    tahun: d.getFullYear(),
+    jam: p2(d.getHours()) + ':' + p2(d.getMinutes())
+  };
+}
+function renderCustomerOrders(){
+  const tbody = $('#customerOrdersBody');
+  const empty = $('#customerOrdersEmpty');
+  if(!tbody) return;
+  const list = [...DB.pesanan].sort((a,b) => (b.ts||0) - (a.ts||0));
+  if(!list.length){
+    tbody.innerHTML = '';
+    if(empty) empty.style.display = '';
+    return;
+  }
+  if(empty) empty.style.display = 'none';
+  tbody.innerHTML = list.map(p => {
+    const t = partsTanggal(p.ts || Date.parse(p.waktu) || Date.now());
+    const st  = p.status || 'Baru';
+    const cls = st.toLowerCase().replace(/\s+/g,'');
+    const statusLabel = {
+      'Baru':'🆕 Baru',
+      'Diterima':'✅ Diterima',
+      'Diproses':'🔄 Diproses',
+      'Selesai':'🎉 Selesai',
+      'Batal':'❌ Batal'
+    }[st] || st;
+    return `
+      <tr>
+        <td><span class="q-badge">${formatAntrian(p.queue || 0)}</span></td>
+        <td class="nama-cell" title="${esc(p.nama)}">${esc(p.nama)}</td>
+        <td class="waktu-cell">${t.hari}</td>
+        <td class="waktu-cell">${t.tanggal}</td>
+        <td class="waktu-cell">${t.bulan}</td>
+        <td class="waktu-cell">${t.tahun}</td>
+        <td class="waktu-cell">${t.jam}</td>
+        <td><span class="status-badge ${cls}">${statusLabel}</span></td>
+      </tr>`;
+  }).join('');
+}
+
 /* ---------- ORDERS ---------- */
 function clsStatus(s){
   return { 'Baru':'baru', 'Diterima':'diterima', 'Diproses':'proses', 'Selesai':'selesai', 'Batal':'batal' }[s] || '';
@@ -1485,6 +1606,7 @@ function aksiPesanan(act, id, btn){
     p.status = st;
     tambahNotif('📢 Status #' + p.queue + ' → ' + st, `${p.nama}: ${st}`, 'pesanan');
     simpan(); renderPesanan(); renderStats(); renderNotif();
+    renderCustomerOrders();
     const ok = bukaWA(p.wa, pesanNotifStatus(st, p));
     if(ok) toast('✅ Status ' + st + ' & WhatsApp dikirim');
     return;
@@ -1492,7 +1614,6 @@ function aksiPesanan(act, id, btn){
   if(act === 'wa'){ bukaWA(p.wa, pesanNotifStatus(p.status, p)); return; }
   if(act === 'edit'){ modalEditPesanan(p); return; }
   if(act === 'struk'){
-    // 🔥 Cetak langsung via Bluetooth dari Chrome
     cetakBluetooth(dataStrukDariPesanan(p), { tombol: btn });
     return;
   }
@@ -1504,6 +1625,7 @@ function aksiPesanan(act, id, btn){
   if(act === 'hapus' && confirm(`Hapus pesanan #${p.queue} dari ${p.nama}?`)){
     DB.pesanan = DB.pesanan.filter(x => x.id !== id);
     simpan(); renderPesanan(); renderStats(); perbaruiFieldAntrian();
+    renderCustomerOrders();
     toast('🗑️ Pesanan dihapus.');
   }
 }
@@ -1542,7 +1664,9 @@ function modalEditPesanan(p){
     p.ongkirTambahan = Number($('#edTambahan').value) || 0;
     p.status = $('#edStatus').value;
     p.total = totalPesanan(p);
-    simpan(); tutupModal(); renderPesanan(); renderStats(); toast('✅ Pesanan diperbarui');
+    simpan(); tutupModal(); renderPesanan(); renderStats();
+    renderCustomerOrders();
+    toast('✅ Pesanan diperbarui');
   };
 }
 
@@ -1644,7 +1768,6 @@ function ambilDataStruk(){
 }
 function dataStrukDariPesanan(p){
   const bd = hitungOngkirDariKm(p.jarak || 0);
-  // Pakai breakdown hanya kalau cocok dengan total ongkir tersimpan
   const cocok = Math.abs(bd.total - (p.ongkir || 0)) < 1;
   return {
     no: formatAntrian(p.queue || 0), noRaw: p.queue || 0,
@@ -1704,7 +1827,7 @@ function cetakStrukData(d){
 }
 
 /* ============================================================
-   🖨️ CETAK BLUETOOTH (ESC/POS) — FORMAT RAPI
+   🖨️ CETAK BLUETOOTH (ESC/POS)
    ============================================================ */
 const ENC = new TextEncoder();
 let lebarKertas  = 58;
@@ -1725,7 +1848,6 @@ const BT_SERVICE_UUIDS = [
   '0000ae30-0000-1000-8000-00805f9b34fb'
 ];
 
-/* ---------- Helper teks ASCII ---------- */
 function bersihkanTeks(s){
   return String(s ?? '')
     .replace(/[\u2018\u2019]/g, "'")
@@ -1759,7 +1881,6 @@ function bungkusTeks(teks, w){
   return hasil.length ? hasil : [''];
 }
 
-/* ---------- Susun baris struk (rapi) ---------- */
 function susunStrukESC(d){
   const w = lebarKarakter();
   const L = [];
@@ -1770,25 +1891,21 @@ function susunStrukESC(d){
     size: o.size || 1
   });
 
-  /* HEADER */
   add(d.namaToko.toUpperCase(), { align:'center', bold:true, size:2 });
   if(d.alamatToko) bungkusTeks(d.alamatToko, w).forEach(t => add(t, { align:'center' }));
   add('Admin : ' + (d.namaAdmin || '-'), { align:'center' });
   add('WA    : ' + (d.waAdmin || '-'), { align:'center' });
   add(garisStruk(w, '='));
 
-  /* NOMOR ANTRIAN */
   add('NOMOR ANTRIAN', { align:'center' });
   add(d.no, { align:'center', bold:true, size:2 });
   add(garisStruk(w, '='));
 
-  /* INFO WAKTU & PELANGGAN */
   add(rataKiriKanan('Waktu', d.waktuSingkat || d.waktu, w));
   add(rataKiriKanan('Pelanggan', d.pelanggan || '-', w));
   if(d.waPelanggan) add(rataKiriKanan('WA', d.waPelanggan, w));
   add(garisStruk(w, '-'));
 
-  /* ITEM LIST */
   if(d.items && d.items.length){
     add('RINCIAN BARANG', { bold:true });
     d.items.forEach(i => {
@@ -1800,7 +1917,6 @@ function susunStrukESC(d){
   }
   add(garisStruk(w, '-'));
 
-  /* BIAYA */
   add(rataKiriKanan('Subtotal', rp(d.subtotal), w));
   add(rataKiriKanan('Ongkir (' + d.jarak + ' km)', rp(d.ongkirDasar), w));
   if(d.breakdown && d.breakdown.km2 > 0){
@@ -1812,7 +1928,6 @@ function susunStrukESC(d){
   add(rataKiriKanan('TOTAL', rp(d.total), w), { bold:true });
   add(garisStruk(w, '='));
 
-  /* FOOTER */
   add('');
   add('Terima kasih sudah berbelanja', { align:'center' });
   add('Barang yang sudah dibeli', { align:'center' });
@@ -1822,14 +1937,13 @@ function susunStrukESC(d){
   return L;
 }
 
-/* ---------- Ubah baris → byte ESC/POS ---------- */
 function bytesStrukEscpos(baris){
   const w = lebarKarakter();
   const out = [];
   const b = arr => out.push(new Uint8Array(arr));
 
-  b([0x1B, 0x40]);                                    // reset
-  b([0x1B, 0x61, 0x00]);                              // align left
+  b([0x1B, 0x40]);
+  b([0x1B, 0x61, 0x00]);
 
   for(const ln of baris){
     const size = ln.size || 1;
@@ -1838,23 +1952,22 @@ function bytesStrukEscpos(baris){
     if(teks.length > maxChar) teks = teks.slice(0, maxChar);
 
     const alignByte = ln.align === 'center' ? 1 : ln.align === 'right' ? 2 : 0;
-    b([0x1B, 0x61, alignByte]);                       // ESC a → alignment
-    b([0x1D, 0x21, size === 2 ? 0x11 : 0x00]);        // GS ! → ukuran font
-    b([0x1B, 0x45, ln.bold ? 1 : 0]);                 // ESC E → bold
-    b([0x1B, 0x47, gelapCetak ? 1 : 0]);              // ESC G → double-strike
+    b([0x1B, 0x61, alignByte]);
+    b([0x1D, 0x21, size === 2 ? 0x11 : 0x00]);
+    b([0x1B, 0x45, ln.bold ? 1 : 0]);
+    b([0x1B, 0x47, gelapCetak ? 1 : 0]);
     out.push(ENC.encode(teks + '\n'));
   }
 
-  b([0x1B, 0x45, 0x00]);      // bold off
-  b([0x1B, 0x47, 0x00]);      // double-strike off
-  b([0x1D, 0x21, 0x00]);      // size normal
-  b([0x1B, 0x61, 0x00]);      // rata kiri
-  b([0x1B, 0x64, 0x04]);      // feed 4
-  b([0x1D, 0x56, 0x42, 0x00]); // partial cut
+  b([0x1B, 0x45, 0x00]);
+  b([0x1B, 0x47, 0x00]);
+  b([0x1D, 0x21, 0x00]);
+  b([0x1B, 0x61, 0x00]);
+  b([0x1B, 0x64, 0x04]);
+  b([0x1D, 0x56, 0x42, 0x00]);
   return out;
 }
 
-/* ---------- UI status ---------- */
 function setBtStatus(pesan, ok){
   const el = $('#btStatus'); if(!el) return;
   el.textContent = 'Printer Bluetooth: ' + pesan;
@@ -1868,7 +1981,7 @@ async function btCariKarakteristik(server){
       const chars = await svc.getCharacteristics();
       const wr = chars.find(c => c.properties.write || c.properties.writeWithoutResponse);
       if(wr) return wr;
-    }catch(e){ /* lanjut */ }
+    }catch(e){}
   }
   try{
     const svcs = await server.getPrimaryServices();
@@ -2007,7 +2120,7 @@ function initPengaturanPrinter(){
 }
 
 /* ============================================================
-   🎫 INPUT NOMOR ANTRIAN & AUTO-FILL DARI HISTORY
+   🎫 NOMOR ANTRIAN & AUTO-FILL
    ============================================================ */
 function autoIsiDariAntrian(opts = {}){
   const ia = $('#strkAntrian');
@@ -2019,7 +2132,6 @@ function autoIsiDariAntrian(opts = {}){
 
   const namaNow = $('#strkNama').value.trim();
   const waNow   = $('#strkWa').value.trim();
-  // Isi kalau kosong, atau kalau memang beda dengan data history
   const namaTarget = p.nama || '';
   const waTarget   = p.wa || '';
   let changed = false;
@@ -2108,7 +2220,6 @@ function bindEvents(){
   $('#btnKirim').onclick = kirimPesanan;
   pasangListenerAutoClear();
 
-  /* Admin toko */
   $('#btnSimpanToko').onclick = () => {
     DB.pengaturan.namaToko   = $('#aNamaToko').value.trim() || 'JastipKu';
     DB.pengaturan.namaAdmin  = $('#aNamaAdmin').value.trim();
@@ -2123,7 +2234,6 @@ function bindEvents(){
     renderStats(); renderPreviewStruk(); toast('✅ Identitas toko disimpan & tersinkron');
   };
 
-  /* Ongkir: tarif 1 km pertama + tarif tambahan */
   $('#btnSimpanOngkir').onclick = () => {
     DB.pengaturan.ongkirPerKm     = Number($('#aOngkirKm').value) || 0;
     DB.pengaturan.ongkirPerKmNext = Number($('#aOngkirKmNext').value) || 0;
@@ -2156,7 +2266,6 @@ function bindEvents(){
     }catch(e){ toast('❌ Lokasi tidak ditemukan', 3000, true); }
   };
 
-  /* Tampilan */
   $('#btnAcak').onclick = () => {
     DB.pengaturan.tema = paletAcak(); simpan(); terapkanTema(); toast('🎲 Warna otomatis diterapkan');
   };
@@ -2168,7 +2277,6 @@ function bindEvents(){
     DB.pengaturan.tema[i.dataset.c] = i.value; simpan(); terapkanTema();
   });
 
-  /* Bulk */
   $('#btnWaBaru').onclick = () => {
     const baru = DB.pesanan.filter(p => p.status === 'Baru');
     if(!baru.length) return toast('ℹ️ Tidak ada pesanan baru');
@@ -2181,10 +2289,10 @@ function bindEvents(){
     if(!confirm(`Hapus ${n} pesanan yang berstatus Selesai?`)) return;
     DB.pesanan = DB.pesanan.filter(p => p.status !== 'Selesai');
     simpan(); renderPesanan(); renderStats(); perbaruiFieldAntrian();
+    renderCustomerOrders();
     toast('🗑️ Pesanan selesai dihapus.');
   };
 
-  /* ====== STRUK ====== */
   $('#btnTambahItemStruk').onclick = () => tambahBarisStruk();
   $('#strukItems').addEventListener('click', e => {
     if(e.target.classList.contains('del')){ e.target.closest('.item-row').remove(); hitungStruk(); renderPreviewStruk(); }
@@ -2210,7 +2318,6 @@ function bindEvents(){
     hitungStruk(); renderPreviewStruk(); toast('📏 Jarak: ' + km + ' km');
   });
 
-  /* Bluetooth */
   $('#btnBtSambung').onclick = async () => {
     try{
       await btSambung();
@@ -2246,6 +2353,7 @@ function bindEvents(){
     DB.pesanan.unshift(p);
     tambahNotif('🧾 Struk Manual ' + formatAntrian(queue), p.nama + ' — ' + rp(p.total), 'struk');
     simpan(); renderPesanan(); renderStats(); renderNotif();
+    renderCustomerOrders();
 
     const ia = $('#strkAntrian');
     delete ia.dataset.manual;
@@ -2271,7 +2379,6 @@ function bindEvents(){
     bukaWA(d.waPelanggan, msg);
   };
 
-  /* Notif */
   $('#btnKirimNotif').onclick = () => {
     const j = $('#ntJudul').value.trim(), i = $('#ntIsi').value.trim();
     if(!j || !i) return toast('⚠️ Judul dan isi wajib diisi', 3000, true);
@@ -2280,7 +2387,6 @@ function bindEvents(){
     toast('📢 Pemberitahuan dikirim ke semua device');
   };
 
-  /* Akun */
   $('#btnSimpanAkun').onclick = () => {
     if(!DB.akun) return;
     DB.akun.nama = $('#akNama').value.trim() || DB.akun.nama;
@@ -2303,6 +2409,7 @@ function refreshAllUI(){
   renderNotif();
   renderStats();
   renderPesanan();
+  renderCustomerOrders();
   isiFormAdmin();
   if(!$('#strkAntrian').dataset.manual) perbaruiFieldAntrian(true);
   if(tokoC) tokoC.setLatLng([DB.pengaturan.lat, DB.pengaturan.lng]);
@@ -2331,6 +2438,7 @@ function init(){
   lokasiCustomer = { lat: DB.pengaturan.lat, lng: DB.pengaturan.lng };
   hitungOngkir();
   renderPreviewStruk();
+  renderCustomerOrders();
 
   renderAuth(DB.akun ? 'login' : 'daftar');
   if(sesiAktif && DB.akun) masukAdmin(); else tampil('customer');
@@ -2354,4 +2462,4 @@ function init(){
 window.addEventListener('load', init);
 </script>
 </body>
-  </html>
+</html>
